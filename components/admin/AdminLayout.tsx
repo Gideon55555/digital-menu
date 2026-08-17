@@ -123,7 +123,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Logo */}
         <div className="p-6 border-b border-cream-200 dark:border-slate-800">
           <h1 className="text-2xl font-serif font-bold text-restaurant-accent">
-            A'erkt
+           A&apos;erkt
           </h1>
 
           <p className="text-xs text-restaurant-text-light dark:text-gray-400 mt-1">

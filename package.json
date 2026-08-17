@@ -7,10 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "migrate:menu": "tsx scripts/migrate-menu-to-supabase.ts",
-    "migrate:categories": "tsx scripts/migrate-categories-to-supabase.ts",
-    "migrate:restaurant": "tsx scripts/migrate-restaurant-to-supabase.ts"
+    "lint": "next lint"
+    
   },
  "dependencies": {
   "@supabase/supabase-js": "^2.109.0",

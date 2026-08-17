@@ -56,8 +56,8 @@ export interface RestaurantSettings {
   name: LocalizedString;
   tagline?: LocalizedString;
   description?: LocalizedString;
-  logo?: string;
-  coverImage?: string;
+  logo?: string | null;
+coverImage?: string | null;
   phone: string;
   whatsapp?: string;
   email?: string;

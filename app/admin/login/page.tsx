@@ -40,7 +40,7 @@ export default function AdminLogin() {
       <div className="w-full max-w-md">
         <div className="restaurant-card p-8">
           <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white text-center mb-2">
-            A'erkt Admin
+            A&apos;erkt Admin
           </h1>
 
           <p className="text-center text-restaurant-text-light dark:text-gray-400 mb-8">
