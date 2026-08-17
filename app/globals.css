@@ -1,0 +1,249 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Base
+   ============================================ */
+
+* {
+  scroll-behavior: smooth;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-feature-settings: 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Lora', serif;
+  font-weight: 700;
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-cream-200 dark:bg-restaurant-bg-dark;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-restaurant-accent rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-restaurant-accent-dark;
+}
+
+/* ============================================
+   Smooth transitions
+   ============================================ */
+
+@supports (backdrop-filter: blur(1px)) {
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* ============================================
+   Form styling
+   ============================================ */
+
+button,
+input,
+textarea,
+select {
+  @apply transition-colors duration-200;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none ring-2 ring-restaurant-accent/50;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseSoft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.75;
+  }
+}
+
+/* Animation utility classes */
+
+.animate-fade-in {
+  animation: fadeIn 300ms ease-out both;
+}
+
+.animate-slide-up {
+  animation: slideUp 400ms ease-out both;
+}
+
+.animate-slide-down {
+  animation: slideDown 400ms ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulseSoft 2s ease-in-out infinite;
+}
+
+/* ============================================
+   Utility classes
+   ============================================ */
+
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden border-0 whitespace-nowrap;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.safe-area-inset-left {
+  margin-left: max(1rem, env(safe-area-inset-left));
+}
+
+.safe-area-inset-right {
+  margin-right: max(1rem, env(safe-area-inset-right));
+}
+
+.safe-area-inset-top {
+  margin-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-area-inset-bottom {
+  margin-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ============================================
+   Container queries
+   ============================================ */
+
+@supports (container-type: inline-size) {
+  .container-responsive {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 400px) {
+    .container-sm\:hidden {
+      @apply hidden;
+    }
+  }
+}
+
+/* ============================================
+   Restaurant components
+   ============================================ */
+
+.restaurant-card {
+  @apply bg-white dark:bg-slate-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-cream-200 dark:border-slate-800;
+}
+
+.restaurant-button {
+  @apply px-4 py-2 bg-restaurant-accent text-white rounded-lg hover:bg-restaurant-accent-dark transition-colors duration-200 font-medium;
+}
+
+.restaurant-button-secondary {
+  @apply px-4 py-2 bg-cream-200 dark:bg-slate-800 text-restaurant-text dark:text-white rounded-lg hover:bg-cream-300 dark:hover:bg-slate-700 transition-colors duration-200 font-medium;
+}
+
+.restaurant-badge {
+  @apply inline-block px-2 py-1 text-sm font-medium rounded-full bg-restaurant-accent/10 text-restaurant-accent dark:bg-restaurant-accent/20;
+}
+
+.restaurant-divider {
+  @apply border-t border-cream-200 dark:border-slate-800;
+}
+
+/* ============================================
+   Responsive typography
+   ============================================ */
+
+@media (max-width: 640px) {
+  h1 {
+    @apply text-2xl sm:text-3xl;
+  }
+
+  h2 {
+    @apply text-xl sm:text-2xl;
+  }
+
+  h3 {
+    @apply text-lg sm:text-xl;
+  }
+}
+
+/* ============================================
+   Print styles
+   ============================================ */
+
+@media print {
+  body {
+    @apply bg-white;
+  }
+
+  .no-print {
+    @apply hidden;
+  }
+}

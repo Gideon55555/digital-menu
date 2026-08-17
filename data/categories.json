@@ -1,0 +1,57 @@
+[
+  {
+    "id": "breakfast",
+    "name": {
+      "en": "Breakfastt",
+      "am": "ቁርስ"
+    },
+    "description": {
+      "en": "Fresh and delicious breakfast options"
+    },
+    "icon": "Coffee",
+    "displayOrder": 1,
+    "visible": true
+  },
+  {
+    "id": "lunch-dinner",
+    "name": {
+      "en": "Lunch / Dinner",
+      "am": "ምሳ / ሌሊት"
+    },
+    "description": {
+      "en": "Hearty lunch and dinner specialties",
+      "am": ""
+    },
+    "icon": "Utensils",
+    "displayOrder": 2,
+    "visible": true
+  },
+  {
+    "id": "fasting",
+    "name": {
+      "en": "Fasting Menu",
+      "am": "ገዳይ ምግብ"
+    },
+    "description": {
+      "en": "Plant-based fasting dishes",
+      "am": ""
+    },
+    "icon": "Leaf",
+    "displayOrder": 3,
+    "visible": true
+  },
+  {
+    "id": "catering",
+    "name": {
+      "en": "Catering Services",
+      "am": "ማቅረቢያ አገልግሎት"
+    },
+    "description": {
+      "en": "Events and celebrations",
+      "am": ""
+    },
+    "icon": "Users",
+    "displayOrder": 4,
+    "visible": true
+  }
+]

@@ -1,0 +1,663 @@
+[
+  {
+    "id": "porridge-avocado",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Porridge Avocado is it editing?",
+      "am": ""
+    },
+    "description": {
+      "en": "Oats, milk, boiled egg, honey served with bread",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 1,
+    "ingredients": [],
+    "allergens": [],
+    "updatedAt": "2026-08-16T07:55:06.524Z"
+  },
+  {
+    "id": "yebeg-kikil",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Yebeg Kikil",
+      "am": "የበግ ኪኪል"
+    },
+    "description": {
+      "en": "Chopped onion, turmeric, butter, seasoning & served with injera",
+      "am": ""
+    },
+    "price": 500,
+    "currency": "ETB",
+    "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYRptnxsvW4_vTbXjkLmVzOPkZsgAHFdVCpkWZX8pV-A&s=10",
+    "available": true,
+    "featured": true,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": false,
+    "displayOrder": 1,
+    "ingredients": [],
+    "allergens": [],
+    "updatedAt": "2026-08-16T07:57:59.523Z"
+  },
+  {
+    "id": "beyanet",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Beyanet",
+      "am": "በያነት"
+    },
+    "description": {
+      "en": "Meser, Ater Alecha, leafy greens, potato with carrot, sliced tomato and pepper",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 1
+  },
+  {
+    "id": "omelet",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Omelet",
+      "am": "ኦመሌት"
+    },
+    "description": {
+      "en": "Diced onion, tomato, chili served with toasted bread",
+      "am": ""
+    },
+    "price": 180,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": true,
+    "displayOrder": 2
+  },
+  {
+    "id": "yebeg-tibes",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Yebeg Tibes",
+      "am": "የበግ ጥበስ"
+    },
+    "description": {
+      "en": "Julian beef, onion, chili, berbera, seasoning & served with injera & bread",
+      "am": ""
+    },
+    "price": 400,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 2
+  },
+  {
+    "id": "special-beyanet",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Special Beyanet",
+      "am": "ልዩ በያነት"
+    },
+    "description": {
+      "en": "Special combination of fasting vegetables",
+      "am": ""
+    },
+    "price": 350,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 2
+  },
+  {
+    "id": "special-omelet",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Special Omelet",
+      "am": "ልዩ ኦመሌት"
+    },
+    "description": {
+      "en": "Beef, cheese, diced onion, tomato, chili, served with toasted bread",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 3
+  },
+  {
+    "id": "brown-tibes",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Brown Tibes",
+      "am": "ቡናኝ ጥበስ"
+    },
+    "description": {
+      "en": "Julian marinated beef, onion, tomato, chili, dark soya sauce & served with injera/bread",
+      "am": ""
+    },
+    "price": 450,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 3
+  },
+  {
+    "id": "shiro",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Shiro",
+      "am": "ሺሮ"
+    },
+    "description": {
+      "en": "Traditional chickpea flour dish",
+      "am": ""
+    },
+    "price": 150,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 3
+  },
+  {
+    "id": "yebege-dulet",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Yebege Dulet",
+      "am": "የበገ ዱሌት"
+    },
+    "description": {
+      "en": "Red minced beef, onion, butter served with injera & mitmita",
+      "am": ""
+    },
+    "price": 350,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 4
+  },
+  {
+    "id": "quanta-firfir",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Quanta Firfir",
+      "am": "ኳንታ ፍርፍር"
+    },
+    "description": {
+      "en": "Chopped onion, tomato, berbere, garlic, dry julian beef & seasoning",
+      "am": ""
+    },
+    "price": 400,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 4
+  },
+  {
+    "id": "sufe-fitfit",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Sufe Fitfit",
+      "am": "ሱፌ ፍትፍት"
+    },
+    "description": {
+      "en": "Traditional teff dish",
+      "am": ""
+    },
+    "price": 150,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 4
+  },
+  {
+    "id": "yebere-dulet",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Yebere Dulet",
+      "am": "የበረ ዱሌት"
+    },
+    "description": {
+      "en": "Red minced beef, onion, butter served with injera & mitmita",
+      "am": ""
+    },
+    "price": 300,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 5
+  },
+  {
+    "id": "firfir",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Firfir",
+      "am": "ፍርፍር"
+    },
+    "description": {
+      "en": "Chopped onion, tomato, garlic, ginger with butter & injera",
+      "am": ""
+    },
+    "price": 180,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 5
+  },
+  {
+    "id": "teleba-fitfit",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Teleba Fitfit",
+      "am": "ተለባ ፍትፍት"
+    },
+    "description": {
+      "en": "Traditional grain dish",
+      "am": ""
+    },
+    "price": 150,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 5
+  },
+  {
+    "id": "melas-sember",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Melas Sember",
+      "am": "መላስ ሴምበር"
+    },
+    "description": {
+      "en": "Diced onion, butter, melas sember, served with injera",
+      "am": ""
+    },
+    "price": 350,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": false,
+    "displayOrder": 6
+  },
+  {
+    "id": "diqorsh-firfir",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Diqorsh Firfir",
+      "am": "ዲቆርሽ ፍርፍር"
+    },
+    "description": {
+      "en": "Chopped onion, tomato, garlic, ginger, powder, diqorsh",
+      "am": ""
+    },
+    "price": 230,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": false,
+    "displayOrder": 6
+  },
+  {
+    "id": "special-fasting-combo",
+    "categoryId": "fasting",
+    "name": {
+      "en": "Special Fasting Combo",
+      "am": "ልዩ ገዳይ ማቅረቢያ"
+    },
+    "description": {
+      "en": "Special fasting combo shiro, salad, rice with veggies, derkosh firfir, pasta, one juice and dessert",
+      "am": ""
+    },
+    "price": 500,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": true,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 6
+  },
+  {
+    "id": "chechebsa",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Chechebsa",
+      "am": "ጨጨብሳ"
+    },
+    "description": {
+      "en": "Chechebsa with butter served with honey",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 7
+  },
+  {
+    "id": "tibese-ferefero",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Tibese Ferefero",
+      "am": "ጥበስ ፍረፈሮ"
+    },
+    "description": {
+      "en": "Chopped onion, tomato, berbere, garlic, dry julian beef & seasoning",
+      "am": ""
+    },
+    "price": 350,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 7
+  },
+  {
+    "id": "home-special-chechebsa",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Home Special Chechebsa",
+      "am": "የቤት ልዩ ጨጨብሳ"
+    },
+    "description": {
+      "en": "Minced beef, butter, chechebsa sheet served with honey",
+      "am": ""
+    },
+    "price": 350,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": false,
+    "displayOrder": 8
+  },
+  {
+    "id": "rice-with-vegetable",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Rice with Vegetable",
+      "am": "ስጋ ያለበት ሮዝ"
+    },
+    "description": {
+      "en": "Dices onion vegetable, seasoning & served with bread",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 8
+  },
+  {
+    "id": "american-pancake",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "American Pancake",
+      "am": "አሜሪካዊ ፓንኬክ"
+    },
+    "description": {
+      "en": "Flour, egg, milk served with pancake syrup",
+      "am": ""
+    },
+    "price": 220,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 9
+  },
+  {
+    "id": "quanta-shiro",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Quanta Shiro",
+      "am": "ኳንታ ሺሮ"
+    },
+    "description": {
+      "en": "Chopped onion, tomato, berbere, garlic, dry julian beef & seasoning",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 9
+  },
+  {
+    "id": "ful",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Ful",
+      "am": "ፉል"
+    },
+    "description": {
+      "en": "Tomato, onion, garlic, bean, served with bread",
+      "am": ""
+    },
+    "price": 200,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": true,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 10
+  },
+  {
+    "id": "spaghetti-tomato",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Spaghetti with Tomato Sauce",
+      "am": "ስፓጌቲ በወጪ ጋር"
+    },
+    "description": {
+      "en": "Chopped onion, tomato spaghetti, seasoning & served with bread",
+      "am": ""
+    },
+    "price": 200,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 10
+  },
+  {
+    "id": "special-ful",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Special Ful",
+      "am": "ልዩ ፉል"
+    },
+    "description": {
+      "en": "Egg, tomato, onion, garlic, and bean served with bread",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 11
+  },
+  {
+    "id": "special-combo",
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "Special Combo",
+      "am": "ልዩ ማቅረቢያ"
+    },
+    "description": {
+      "en": "Kikle, tibes, normal firfir, dulet, boiled egg with starter & dessert",
+      "am": ""
+    },
+    "price": 900,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": true,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "displayOrder": 11
+  },
+  {
+    "id": "scrambled-egg",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Scrambled Egg",
+      "am": "የተጠበበ ዕንቁላል"
+    },
+    "description": {
+      "en": "Egg, tomato, onion, served with bread",
+      "am": ""
+    },
+    "price": 200,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": true,
+    "spicy": false,
+    "displayOrder": 12
+  },
+  {
+    "id": "scrambled-egg-beef",
+    "categoryId": "breakfast",
+    "name": {
+      "en": "Scrambled Egg With Beef",
+      "am": "ከስጋ ጋር የተጠበበ ዕንቁላል"
+    },
+    "description": {
+      "en": "Egg, beef, tomato, onion, served with bread",
+      "am": ""
+    },
+    "price": 250,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": false,
+    "displayOrder": 13
+  },
+  {
+    "categoryId": "lunch-dinner",
+    "name": {
+      "en": "test",
+      "am": "test"
+    },
+    "description": {
+      "en": "this is a test item",
+      "am": "this is also a test "
+    },
+    "price": 472,
+    "currency": "ETB",
+    "image": null,
+    "available": true,
+    "featured": false,
+    "fasting": false,
+    "vegetarian": false,
+    "spicy": true,
+    "ingredients": [],
+    "allergens": [],
+    "displayOrder": 30,
+    "id": "item_1786868760418_5clxo1cu6",
+    "createdAt": "2026-08-16T08:26:00.418Z",
+    "updatedAt": "2026-08-16T08:26:00.418Z"
+  }
+]

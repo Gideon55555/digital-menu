@@ -1,0 +1,53 @@
+{
+  "id": "default",
+  "name": {
+    "en": "A'erkt",
+    "am": "ዐርክ"
+  },
+  "tagline": {
+    "en": "Authentic Ethiopian Cuisine",
+    "am": "ዋዋ ኢትዮጵያዊ ምግብ"
+  },
+  "description": {
+    "en": "Experience the rich flavors and traditions of Ethiopian cuisine at A'erkt. We serve premium dishes prepared with the finest ingredients and traditional methods.",
+    "am": ""
+  },
+  "logo": null,
+  "coverImage": null,
+  "phone": "+251-11-123-4567",
+  "whatsapp": "+251-911-234-567",
+  "email": "info@A'erkt.com",
+  "address": {
+    "en": "Addis Ababa, Ethiopia",
+    "am": "አዲስ አበባ, ኢትዮጵያ"
+  },
+  "googleMapsUrl": "https://maps.google.com",
+  "openingHours": {
+    "monday": "11:00 AM - 10:00 PM",
+    "tuesday": "11:00 AM - 10:00 PM",
+    "wednesday": "11:00 AM - 10:00 PM",
+    "thursday": "11:00 AM - 10:00 PM",
+    "friday": "11:00 AM - 11:00 PM",
+    "saturday": "11:00 AM - 11:00 PM",
+    "sunday": "12:00 PM - 10:00 PM",
+    "notes": {
+      "en": "Closed on major holidays",
+      "am": ""
+    }
+  },
+  "currency": "ETB",
+  "defaultLanguage": "en",
+  "availableLanguages": ["en", "am"],
+  "social": {
+    "instagram": "https://instagram.com/A'erkt",
+    "facebook": "https://facebook.com/A'erkt",
+    "tiktok": "https://tiktok.com/@A'erkt",
+    "website": "https://A'erkt.com"
+  },
+  "catering": {
+    "available": true,
+    "contactPhone": "+251-911-234-567",
+    "contactEmail": "catering@A'erkt.com",
+    "services": ["Wedding", "Birthday", "Graduation"]
+  }
+}
