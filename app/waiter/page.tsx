@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { getAdminAuth } from '@/lib/admin-auth'
 import { supabase } from '@/lib/supabase'
@@ -20,11 +19,7 @@ import {
   Send,
   AlertCircle,
   Utensils,
-  Wine,
-  FolderPlus,
   X,
-  ExternalLink,
-  ChefHat,
   Layers,
 } from 'lucide-react'
 
@@ -132,15 +127,6 @@ export default function WaiterPage() {
 
   const [search, setSearch] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')
-
-  // Quick category creation modal state
-  const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false)
-  const [newCategoryNameEn, setNewCategoryNameEn] = useState('')
-  const [newCategoryNameAm, setNewCategoryNameAm] = useState('')
-  const [newCategoryType, setNewCategoryType] = useState<'food' | 'drink'>('food')
-  const [newCategoryIcon, setNewCategoryIcon] = useState('Utensils')
-  const [creatingCategory, setCreatingCategory] = useState(false)
-  const [categoryModalError, setCategoryModalError] = useState('')
 
   // ---------------------------------------------------------
   // LOAD LOGGED-IN WAITER IDENTITY
@@ -473,64 +459,6 @@ export default function WaiterPage() {
 
     return groups
   }, [categories, menuItems, search, selectedCategoryId])
-
-  // ---------------------------------------------------------
-  // CREATE NEW CATEGORY
-  // ---------------------------------------------------------
-  async function handleCreateCategory(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newCategoryNameEn.trim()) {
-      setCategoryModalError(
-        isAmharic ? 'እባክዎ የእንግሊዝኛ ስም ያስገቡ።' : 'Category name in English is required.'
-      )
-      return
-    }
-
-    try {
-      setCreatingCategory(true)
-      setCategoryModalError('')
-
-      const payload = {
-        name: {
-          en: newCategoryNameEn.trim(),
-          am: newCategoryNameAm.trim() || undefined,
-        },
-        type: newCategoryType,
-        icon: newCategoryIcon,
-        displayOrder: categories.length + 1,
-        visible: true,
-      }
-
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to create category')
-      }
-
-      const created: MenuCategory = data.data
-      setCategories((prev) => [...prev, created])
-      setSelectedCategoryId(created.id)
-      setNewCategoryNameEn('')
-      setNewCategoryNameAm('')
-      setNewCategoryType('food')
-      setNewCategoryIcon('Utensils')
-      setShowCreateCategoryModal(false)
-      setOrderSuccess(
-        isAmharic
-          ? `ምድብ "${created.name.am || created.name.en}" በተሳካ ሁኔታ ተፈጥሯል!`
-          : `Category "${created.name.en}" created successfully!`
-      )
-    } catch (err: any) {
-      setCategoryModalError(err.message || 'Error creating category')
-    } finally {
-      setCreatingCategory(false)
-    }
-  }
 
   // ---------------------------------------------------------
   // SUBMIT ORDER WITH WAITER IDENTITY
@@ -1006,7 +934,7 @@ export default function WaiterPage() {
           </div>
 
           {/* ===================================================== */}
-          {/* CATEGORY TABS BAR WITH QUICK ADD BUTTON               */}
+          {/* CATEGORY TABS BAR                                     */}
           {/* ===================================================== */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin pt-1">
             {/* ALL ITEMS PILL */}
@@ -1061,16 +989,6 @@ export default function WaiterPage() {
                 </button>
               )
             })}
-
-            {/* "+ NEW CATEGORY" BUTTON */}
-            <button
-              onClick={() => setShowCreateCategoryModal(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 shadow-sm"
-              title={isAmharic ? 'አዲስ የምድብ አይነት ይፍጠሩ' : 'Create new category'}
-            >
-              <Plus size={13} className="text-purple-600 dark:text-purple-400" />
-              <span>{isAmharic ? '+ አዲስ ምድብ' : '+ Add Category'}</span>
-            </button>
           </div>
 
           {/* ===================================================== */}
@@ -1191,196 +1109,6 @@ export default function WaiterPage() {
             </div>
           )}
         </section>
-
-        {/* ===================================================== */}
-        {/* MODAL: QUICK CREATE CATEGORY                          */}
-        {/* ===================================================== */}
-        {showCreateCategoryModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-cream-200 dark:border-slate-800 overflow-hidden">
-              {/* MODAL HEADER */}
-              <div className="flex items-center justify-between p-4 border-b border-cream-200 dark:border-slate-800 bg-cream-50/60 dark:bg-slate-800/60">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                    <FolderPlus size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-restaurant-text dark:text-white">
-                      {isAmharic ? 'አዲስ የምድብ አይነት ፍጠር' : 'Create New Menu Category'}
-                    </h3>
-                    <p className="text-[11px] text-gray-400">
-                      {isAmharic ? 'ምግቦችንና መጠጦችን በየምድባቸው ለማደራጀት' : 'Organize dishes & drinks for fast waiter ordering'}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowCreateCategoryModal(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* MODAL BODY */}
-              <form onSubmit={handleCreateCategory} className="p-4 space-y-4">
-                {categoryModalError && (
-                  <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
-                    <AlertCircle size={14} className="shrink-0" />
-                    <span>{categoryModalError}</span>
-                  </div>
-                )}
-
-                {/* ENGLISH NAME */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    {isAmharic ? 'የምድብ ስም (እንግሊዝኛ) *' : 'Category Name (English) *'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Hot Drinks, Traditional Dishes, Pastries"
-                    value={newCategoryNameEn}
-                    onChange={(e) => setNewCategoryNameEn(e.target.value)}
-                    className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3 py-2 text-xs outline-none focus:border-restaurant-accent"
-                  />
-                </div>
-
-                {/* AMHARIC NAME */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    {isAmharic ? 'የምድብ ስም (አማርኛ)' : 'Category Name (Amharic)'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="ለምሳሌ፦ ትኩስ መጠጦች፣ የባህል ምግቦች፣ ኬክ"
-                    value={newCategoryNameAm}
-                    onChange={(e) => setNewCategoryNameAm(e.target.value)}
-                    className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3 py-2 text-xs outline-none focus:border-restaurant-accent"
-                  />
-                </div>
-
-                {/* KITCHEN TYPE SELECTOR */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                    {isAmharic ? 'የትኛው ኩሽና ያዘጋጀዋል? (Type)' : 'Target Kitchen Preparation (Type)'}
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewCategoryType('food')
-                        if (newCategoryIcon === 'Wine') setNewCategoryIcon('Utensils')
-                      }}
-                      className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
-                        newCategoryType === 'food'
-                          ? 'border-restaurant-accent bg-restaurant-accent/10 ring-2 ring-restaurant-accent/20'
-                          : 'border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40'
-                      }`}
-                    >
-                      <ChefHat size={18} className="text-restaurant-accent shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-restaurant-text dark:text-white">
-                          {isAmharic ? 'የምግብ ኩሽና' : 'Food Kitchen'}
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {isAmharic ? 'ቁርስ፣ ምሳ፣ እራት' : 'Mains, breakfast, sides'}
-                        </div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewCategoryType('drink')
-                        if (newCategoryIcon === 'Utensils') setNewCategoryIcon('Wine')
-                      }}
-                      className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
-                        newCategoryType === 'drink'
-                          ? 'border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/20'
-                          : 'border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40'
-                      }`}
-                    >
-                      <Wine size={18} className="text-blue-500 shrink-0" />
-                      <div>
-                        <div className="text-xs font-bold text-restaurant-text dark:text-white">
-                          {isAmharic ? 'የመጠጥ ማዘጋጃ' : 'Drink Kitchen'}
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {isAmharic ? 'ቡና፣ ጁስ፣ ለስላሳ' : 'Beverages, coffee, bar'}
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* ICON SELECTOR */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-                    {isAmharic ? 'ምልክት (Icon)' : 'Category Icon'}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { icon: 'Utensils', emoji: '🍽️', label: 'Food' },
-                      { icon: 'Coffee', emoji: '☕', label: 'Coffee' },
-                      { icon: 'Wine', emoji: '🥤', label: 'Drinks' },
-                      { icon: 'Leaf', emoji: '🌿', label: 'Fasting' },
-                      { icon: 'Pizza', emoji: '🍕', label: 'Pizza' },
-                      { icon: 'Beer', emoji: '🍺', label: 'Beer' },
-                      { icon: 'Sparkles', emoji: '✨', label: 'Special' },
-                      { icon: 'Users', emoji: '👥', label: 'Catering' },
-                    ].map((item) => (
-                      <button
-                        key={item.icon}
-                        type="button"
-                        onClick={() => setNewCategoryIcon(item.icon)}
-                        className={`px-3 py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition ${
-                          newCategoryIcon === item.icon
-                            ? 'border-restaurant-accent bg-restaurant-accent/15 text-restaurant-accent font-bold ring-1 ring-restaurant-accent/30'
-                            : 'border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 text-gray-600 dark:text-gray-300'
-                        }`}
-                      >
-                        <span>{item.emoji}</span>
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* ACTIONS */}
-                <div className="pt-3 border-t border-cream-200 dark:border-slate-800 flex items-center justify-between gap-3">
-                  <Link
-                    href="/admin/categories"
-                    className="text-[11px] text-gray-400 hover:text-restaurant-accent flex items-center gap-1"
-                  >
-                    <ExternalLink size={11} />
-                    <span>{isAmharic ? 'ሁሉንም ምድቦች አስተዳድር' : 'Full Manager'}</span>
-                  </Link>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateCategoryModal(false)}
-                      disabled={creatingCategory}
-                      className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-cream-100 dark:hover:bg-slate-800 transition"
-                    >
-                      {isAmharic ? 'ተው' : 'Cancel'}
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={creatingCategory}
-                      className="px-5 py-2 rounded-xl text-xs font-bold bg-restaurant-accent text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition flex items-center gap-1.5"
-                    >
-                      <Plus size={14} />
-                      <span>{creatingCategory ? (isAmharic ? 'በመፍጠር ላይ...' : 'Creating...') : (isAmharic ? 'ምድቡን ፍጠር' : 'Create Category')}</span>
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* ===================================================== */}
         {/* MOBILE STICKY FLOATING BOTTOM BAR                     */}
