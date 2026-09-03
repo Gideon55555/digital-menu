@@ -32,7 +32,6 @@ import {
   Activity,
   Camera,
   Eye,
-  Globe,
 } from 'lucide-react'
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'custom'

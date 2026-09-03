@@ -281,4 +281,6 @@ export const adminTranslations = {
     amountPaid: 'የተከፈለ መጠን',
     paymentMethodLabel: 'የክፍያ ዘዴ',
   },
-} as const;
+};
+
+export type AdminTranslations = typeof adminTranslations.en;

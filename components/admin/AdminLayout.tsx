@@ -27,7 +27,6 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Globe,
 } from 'lucide-react';
 import { getAdminAccessToken, getAdminAuth, normalizeAdminRole, signOutAdmin } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';

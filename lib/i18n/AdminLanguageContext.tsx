@@ -1,12 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AdminLanguage, adminTranslations } from './admin-translations';
+import { AdminLanguage, adminTranslations, AdminTranslations } from './admin-translations';
 
 interface AdminLanguageContextType {
   language: AdminLanguage;
   setLanguage: (lang: AdminLanguage) => void;
-  t: (typeof adminTranslations)['en'];
+  t: AdminTranslations;
 }
 
 const AdminLanguageContext = createContext<AdminLanguageContextType>({
