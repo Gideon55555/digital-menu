@@ -24,6 +24,11 @@ export const localizedStringSchema = z.object({
  *
  * Used when reading/validating an existing category that already
  * has an ID.
+ *
+ * Category type determines which kitchen handles the category:
+ *
+ * food  -> Food Kitchen
+ * drink -> Drink Kitchen
  */
 export const menuCategorySchema = z.object({
   id: z.string().min(1, 'Category ID is required'),
@@ -33,6 +38,15 @@ export const menuCategorySchema = z.object({
   description: localizedStringSchema.optional(),
 
   icon: z.string().optional(),
+
+  /**
+   * Determines which kitchen receives orders
+   * containing items from this category.
+   *
+   * food  -> Food Kitchen
+   * drink -> Drink Kitchen
+   */
+  type: z.enum(['food', 'drink']).default('food'),
 
   displayOrder: z
     .number()
@@ -48,6 +62,8 @@ export type MenuCategoryInput = z.infer<typeof menuCategorySchema>;
  * Create category schema.
  *
  * ID is NOT required because the repository generates it.
+ *
+ * Type defaults to "food" when it is not supplied.
  */
 export const createMenuCategorySchema = menuCategorySchema.omit({
   id: true,
@@ -65,7 +81,7 @@ export type CreateMenuCategoryInput = z.infer<
  * /api/categories/[id]
  *
  * Every other field is optional so we can update only
- * one property, such as "visible".
+ * one property, such as "visible" or "type".
  */
 export const updateMenuCategorySchema =
   createMenuCategorySchema.partial();
@@ -288,7 +304,8 @@ export const adminPasswordChangeSchema = z
       .min(6, 'Confirm password is required'),
   })
   .refine(
-    (data) => data.newPassword === data.confirmPassword,
+    (data) =>
+      data.newPassword === data.confirmPassword,
     {
       message: 'Passwords do not match',
       path: ['confirmPassword'],

@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MenuCategory } from '@/lib/types';
+import {
+  MenuCategory,
+  MenuCategoryType,
+} from '@/lib/types';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+
 import {
   Edit2,
   Trash2,
@@ -11,13 +15,16 @@ import {
   Save,
   Eye,
   EyeOff,
+  Utensils,
+  Coffee,
 } from 'lucide-react';
 
 export default function CategoriesPage() {
   const [items, setItems] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] =
+    useState<string | null>(null);
 
   const [editingCategory, setEditingCategory] =
     useState<MenuCategory | null>(null);
@@ -66,7 +73,10 @@ export default function CategoriesPage() {
 
       setItems(categories);
     } catch (error) {
-      console.error('Failed to load categories:', error);
+      console.error(
+        'Failed to load categories:',
+        error
+      );
 
       alert(
         error instanceof Error
@@ -94,7 +104,11 @@ export default function CategoriesPage() {
         am: '',
       },
       icon: 'Utensils',
-      displayOrder: items.length,
+
+      // NEW
+      type: 'food',
+
+      displayOrder: items.length + 1,
       visible: true,
     });
 
@@ -105,7 +119,9 @@ export default function CategoriesPage() {
   // EDIT CATEGORY
   // =========================================================
 
-  function handleEdit(category: MenuCategory) {
+  function handleEdit(
+    category: MenuCategory
+  ) {
     setEditingCategory({
       ...category,
 
@@ -116,22 +132,33 @@ export default function CategoriesPage() {
 
       description: category.description
         ? {
-            en: category.description.en || '',
-            am: category.description.am || '',
+            en:
+              category.description.en || '',
+            am:
+              category.description.am || '',
           }
         : {
             en: '',
             am: '',
           },
 
-      icon: category.icon || 'Utensils',
+      icon:
+        category.icon || 'Utensils',
+
+      // NEW
+      type:
+        category.type === 'drink'
+          ? 'drink'
+          : 'food',
 
       displayOrder:
-        typeof category.displayOrder === 'number'
+        typeof category.displayOrder ===
+        'number'
           ? category.displayOrder
           : 0,
 
-      visible: category.visible !== false,
+      visible:
+        category.visible !== false,
     });
 
     setIsAdding(false);
@@ -152,7 +179,9 @@ export default function CategoriesPage() {
   // DELETE CATEGORY
   // =========================================================
 
-  async function handleDelete(id: string) {
+  async function handleDelete(
+    id: string
+  ) {
     if (actionLoading) return;
 
     const category = items.find(
@@ -160,7 +189,8 @@ export default function CategoriesPage() {
     );
 
     const categoryName =
-      category?.name?.en || 'this category';
+      category?.name?.en ||
+      'this category';
 
     const confirmed = window.confirm(
       `Are you sure you want to delete "${categoryName}"?`
@@ -186,15 +216,16 @@ export default function CategoriesPage() {
         );
       }
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!result.success) {
         throw new Error(
-          result.error || 'Failed to delete category'
+          result.error ||
+            'Failed to delete category'
         );
       }
 
-      // Reload from server so the UI matches categories.json.
       await loadCategories();
     } catch (error) {
       console.error(
@@ -246,9 +277,9 @@ export default function CategoriesPage() {
     try {
       setSaving(true);
 
-      // -------------------------------------------------------
+      // =====================================================
       // CREATE
-      // -------------------------------------------------------
+      // =====================================================
 
       if (isAdding) {
         const body = {
@@ -268,6 +299,7 @@ export default function CategoriesPage() {
               ? {
                   en:
                     editingCategory.description.en.trim(),
+
                   am:
                     editingCategory.description.am?.trim() ||
                     undefined,
@@ -277,6 +309,10 @@ export default function CategoriesPage() {
           icon:
             editingCategory.icon ||
             'Utensils',
+
+          // NEW
+          type:
+            editingCategory.type,
 
           displayOrder:
             editingCategory.displayOrder,
@@ -290,7 +326,8 @@ export default function CategoriesPage() {
           {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type':
+                'application/json',
             },
             body: JSON.stringify(body),
           }
@@ -302,7 +339,8 @@ export default function CategoriesPage() {
           );
         }
 
-        const result = await response.json();
+        const result =
+          await response.json();
 
         if (!result.success) {
           throw new Error(
@@ -314,15 +352,14 @@ export default function CategoriesPage() {
         setEditingCategory(null);
         setIsAdding(false);
 
-        // Get the actual saved data from the server.
         await loadCategories();
 
         return;
       }
 
-      // -------------------------------------------------------
+      // =====================================================
       // UPDATE
-      // -------------------------------------------------------
+      // =====================================================
 
       if (!editingCategory.id) {
         throw new Error(
@@ -347,6 +384,7 @@ export default function CategoriesPage() {
             ? {
                 en:
                   editingCategory.description.en.trim(),
+
                 am:
                   editingCategory.description.am?.trim() ||
                   undefined,
@@ -356,6 +394,10 @@ export default function CategoriesPage() {
         icon:
           editingCategory.icon ||
           'Utensils',
+
+        // NEW
+        type:
+          editingCategory.type,
 
         displayOrder:
           editingCategory.displayOrder,
@@ -371,7 +413,8 @@ export default function CategoriesPage() {
         {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify(body),
         }
@@ -383,7 +426,8 @@ export default function CategoriesPage() {
         );
       }
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!result.success) {
         throw new Error(
@@ -395,7 +439,6 @@ export default function CategoriesPage() {
       setEditingCategory(null);
       setIsAdding(false);
 
-      // Get the actual saved data from the server.
       await loadCategories();
     } catch (error) {
       console.error(
@@ -432,10 +475,12 @@ export default function CategoriesPage() {
         {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
-            visible: !category.visible,
+            visible:
+              !category.visible,
           }),
         }
       );
@@ -446,7 +491,8 @@ export default function CategoriesPage() {
         );
       }
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!result.success) {
         throw new Error(
@@ -455,7 +501,6 @@ export default function CategoriesPage() {
         );
       }
 
-      // Reload from server to guarantee persistence.
       await loadCategories();
     } catch (error) {
       console.error(
@@ -474,7 +519,7 @@ export default function CategoriesPage() {
   }
 
   // =========================================================
-  // LOADING STATE
+  // LOADING
   // =========================================================
 
   if (loading) {
@@ -495,15 +540,19 @@ export default function CategoriesPage() {
     <AdminLayout>
       <div className="space-y-6">
 
-        {/* Header */}
+        {/* ===================================================
+            HEADER
+        =================================================== */}
+
         <div className="flex items-center justify-between gap-4">
+
           <div>
             <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
               Categories
             </h1>
 
             <p className="text-restaurant-text-light dark:text-gray-400 mt-1">
-              Manage menu categories
+              Manage menu categories and food/drink types
             </p>
           </div>
 
@@ -515,14 +564,24 @@ export default function CategoriesPage() {
             <Plus size={20} />
             Add Category
           </button>
+
         </div>
 
-        {/* Categories Grid */}
+        {/* ===================================================
+            CATEGORIES GRID
+        =================================================== */}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
           {items.map((category) => {
+
             const isActionLoading =
-              actionLoading === category.id;
+              actionLoading ===
+              category.id;
+
+            const isDrink =
+              category.type ===
+              'drink';
 
             return (
               <div
@@ -530,9 +589,14 @@ export default function CategoriesPage() {
                 className="restaurant-card p-6 hover:shadow-md transition-shadow"
               >
 
-                {/* Category Header */}
+                {/* =================================================
+                    CATEGORY HEADER
+                ================================================= */}
+
                 <div className="flex items-start justify-between mb-4">
+
                   <div className="flex-1">
+
                     <h3 className="text-lg font-semibold text-restaurant-text dark:text-white">
                       {category.name.en}
                     </h3>
@@ -542,33 +606,73 @@ export default function CategoriesPage() {
                         {category.name.am}
                       </p>
                     )}
+
                   </div>
 
                   <div className="text-2xl">
                     {getCategoryEmoji(
-                      category.icon
+                      category.icon,
+                      category.type
                     )}
                   </div>
+
                 </div>
 
-                {/* Description */}
+                {/* =================================================
+                    TYPE BADGE
+                ================================================= */}
+
+                <div className="mb-4">
+
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                      isDrink
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                    }`}
+                  >
+
+                    {isDrink ? (
+                      <Coffee size={14} />
+                    ) : (
+                      <Utensils size={14} />
+                    )}
+
+                    {isDrink
+                      ? 'Drink'
+                      : 'Food'}
+
+                  </span>
+
+                </div>
+
+                {/* =================================================
+                    DESCRIPTION
+                ================================================= */}
+
                 {category.description?.en && (
                   <p className="text-sm text-restaurant-text-light dark:text-gray-400 mb-4 line-clamp-2">
                     {category.description.en}
                   </p>
                 )}
 
-                {/* Bottom */}
+                {/* =================================================
+                    BOTTOM
+                ================================================= */}
+
                 <div className="flex items-center justify-between pt-4 border-t border-cream-200 dark:border-slate-800">
 
-                  {/* Visibility */}
+                  {/* VISIBILITY */}
+
                   <button
                     onClick={() =>
                       handleToggleVisibility(
                         category
                       )
                     }
-                    disabled={isActionLoading}
+                    disabled={
+                      isActionLoading
+                    }
                     className={`text-xs font-medium px-2 py-1 rounded flex items-center gap-1 disabled:opacity-50 ${
                       category.visible
                         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
@@ -580,6 +684,7 @@ export default function CategoriesPage() {
                         : 'Show category'
                     }
                   >
+
                     {category.visible ? (
                       <>
                         <Eye size={14} />
@@ -591,16 +696,24 @@ export default function CategoriesPage() {
                         Hidden
                       </>
                     )}
+
                   </button>
+
+                  {/* ACTIONS */}
 
                   <div className="flex gap-2">
 
-                    {/* Edit */}
+                    {/* EDIT */}
+
                     <button
                       onClick={() =>
-                        handleEdit(category)
+                        handleEdit(
+                          category
+                        )
                       }
-                      disabled={isActionLoading}
+                      disabled={
+                        isActionLoading
+                      }
                       className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
                       title="Edit category"
                     >
@@ -610,14 +723,17 @@ export default function CategoriesPage() {
                       />
                     </button>
 
-                    {/* Delete */}
+                    {/* DELETE */}
+
                     <button
                       onClick={() =>
                         handleDelete(
                           category.id
                         )
                       }
-                      disabled={isActionLoading}
+                      disabled={
+                        isActionLoading
+                      }
                       className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
                       title="Delete category"
                     >
@@ -628,16 +744,22 @@ export default function CategoriesPage() {
                     </button>
 
                   </div>
+
                 </div>
+
               </div>
             );
           })}
 
         </div>
 
-        {/* Empty State */}
+        {/* ===================================================
+            EMPTY STATE
+        =================================================== */}
+
         {items.length === 0 && (
           <div className="restaurant-card p-10 text-center">
+
             <p className="text-gray-500 dark:text-gray-400">
               No categories found.
             </p>
@@ -648,28 +770,34 @@ export default function CategoriesPage() {
             >
               Add Your First Category
             </button>
+
           </div>
         )}
 
-        {/* =====================================================
+        {/* ===================================================
             EDITOR MODAL
-        ====================================================== */}
+        =================================================== */}
 
         {editingCategory && (
           <div
             className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
             onMouseDown={(e) => {
               if (
-                e.target === e.currentTarget &&
+                e.target ===
+                  e.currentTarget &&
                 !saving
               ) {
                 closeEditor();
               }
             }}
           >
+
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
 
-              {/* Modal Header */}
+              {/* =================================================
+                  MODAL HEADER
+              ================================================= */}
+
               <div className="flex items-center justify-between p-6 border-b dark:border-slate-800">
 
                 <h2 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white">
@@ -679,22 +807,32 @@ export default function CategoriesPage() {
                 </h2>
 
                 <button
-                  onClick={closeEditor}
+                  onClick={
+                    closeEditor
+                  }
                   disabled={saving}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50"
                   title="Close"
                 >
                   <X />
                 </button>
+
               </div>
 
-              {/* Modal Body */}
+              {/* =================================================
+                  MODAL BODY
+              ================================================= */}
+
               <div className="p-6 space-y-6">
 
-                {/* Names */}
+                {/* =================================================
+                    NAMES
+                ================================================= */}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                  {/* English Name */}
+                  {/* ENGLISH */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Name (English)
@@ -703,7 +841,8 @@ export default function CategoriesPage() {
                     <input
                       type="text"
                       value={
-                        editingCategory.name.en
+                        editingCategory
+                          .name.en
                       }
                       onChange={(e) =>
                         setEditingCategory({
@@ -721,7 +860,8 @@ export default function CategoriesPage() {
                     />
                   </label>
 
-                  {/* Amharic Name */}
+                  {/* AMHARIC */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Name (Amharic)
@@ -730,7 +870,8 @@ export default function CategoriesPage() {
                     <input
                       type="text"
                       value={
-                        editingCategory.name.am ||
+                        editingCategory
+                          .name.am ||
                         ''
                       }
                       onChange={(e) =>
@@ -750,10 +891,121 @@ export default function CategoriesPage() {
 
                 </div>
 
-                {/* Description */}
+                {/* =================================================
+                    CATEGORY TYPE
+                ================================================= */}
+
+                <div>
+
+                  <label>
+                    <span className="block mb-2 font-medium">
+                      Category Type
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                      {/* FOOD */}
+
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() =>
+                          setEditingCategory({
+                            ...editingCategory,
+                            type: 'food',
+                            icon:
+                              editingCategory.icon ===
+                                'Coffee'
+                                ? 'Utensils'
+                                : editingCategory.icon ||
+                                  'Utensils',
+                          })
+                        }
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                          editingCategory.type ===
+                          'food'
+                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                            : 'border-gray-200 dark:border-slate-700 hover:border-gray-400'
+                        }`}
+                      >
+
+                        <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                          <Utensils
+                            size={22}
+                            className="text-orange-600"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="font-semibold">
+                            Food
+                          </div>
+
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Kitchen food items
+                          </div>
+                        </div>
+
+                      </button>
+
+                      {/* DRINK */}
+
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() =>
+                          setEditingCategory({
+                            ...editingCategory,
+                            type: 'drink',
+                            icon:
+                              editingCategory.icon ===
+                                'Utensils'
+                                ? 'Coffee'
+                                : editingCategory.icon ||
+                                  'Coffee',
+                          })
+                        }
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-colors ${
+                          editingCategory.type ===
+                          'drink'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-slate-700 hover:border-gray-400'
+                        }`}
+                      >
+
+                        <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                          <Coffee
+                            size={22}
+                            className="text-blue-600"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="font-semibold">
+                            Drink
+                          </div>
+
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Drinks and beverages
+                          </div>
+                        </div>
+
+                      </button>
+
+                    </div>
+
+                  </label>
+
+                </div>
+
+                {/* =================================================
+                    DESCRIPTION
+                ================================================= */}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                  {/* English Description */}
+                  {/* ENGLISH */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Description (English)
@@ -763,7 +1015,8 @@ export default function CategoriesPage() {
                       rows={4}
                       value={
                         editingCategory
-                          .description?.en || ''
+                          .description
+                          ?.en || ''
                       }
                       onChange={(e) =>
                         setEditingCategory({
@@ -783,7 +1036,8 @@ export default function CategoriesPage() {
                     />
                   </label>
 
-                  {/* Amharic Description */}
+                  {/* AMHARIC */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Description (Amharic)
@@ -793,7 +1047,8 @@ export default function CategoriesPage() {
                       rows={4}
                       value={
                         editingCategory
-                          .description?.am || ''
+                          .description
+                          ?.am || ''
                       }
                       onChange={(e) =>
                         setEditingCategory({
@@ -815,10 +1070,14 @@ export default function CategoriesPage() {
 
                 </div>
 
-                {/* Icon / Display Order */}
+                {/* =================================================
+                    ICON / DISPLAY ORDER
+                ================================================= */}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                  {/* Icon */}
+                  {/* ICON */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Icon
@@ -856,7 +1115,8 @@ export default function CategoriesPage() {
                     </select>
                   </label>
 
-                  {/* Display Order */}
+                  {/* DISPLAY ORDER */}
+
                   <label>
                     <span className="block mb-2 font-medium">
                       Display Order
@@ -888,8 +1148,12 @@ export default function CategoriesPage() {
 
                 </div>
 
-                {/* Visibility */}
+                {/* =================================================
+                    VISIBILITY
+                ================================================= */}
+
                 <label className="flex items-center gap-3 cursor-pointer">
+
                   <input
                     type="checkbox"
                     checked={
@@ -909,28 +1173,39 @@ export default function CategoriesPage() {
                   <span className="font-medium">
                     Visible on menu
                   </span>
+
                 </label>
 
               </div>
 
-              {/* Footer */}
+              {/* =================================================
+                  MODAL FOOTER
+              ================================================= */}
+
               <div className="flex justify-end gap-3 p-6 border-t dark:border-slate-800">
 
-                {/* Cancel */}
+                {/* CANCEL */}
+
                 <button
-                  onClick={closeEditor}
+                  onClick={
+                    closeEditor
+                  }
                   disabled={saving}
                   className="px-5 py-2 rounded-lg border border-gray-300 dark:border-slate-700 disabled:opacity-50"
                 >
                   Cancel
                 </button>
 
-                {/* Save */}
+                {/* SAVE */}
+
                 <button
-                  onClick={handleSave}
+                  onClick={
+                    handleSave
+                  }
                   disabled={saving}
                   className="flex items-center gap-2 px-5 py-2 bg-restaurant-accent text-white rounded-lg disabled:opacity-50"
                 >
+
                   <Save size={18} />
 
                   {saving
@@ -938,12 +1213,16 @@ export default function CategoriesPage() {
                     : isAdding
                     ? 'Add Category'
                     : 'Save Changes'}
+
                 </button>
 
               </div>
+
             </div>
+
           </div>
         )}
+
       </div>
     </AdminLayout>
   );
@@ -954,14 +1233,23 @@ export default function CategoriesPage() {
 // =========================================================
 
 function getCategoryEmoji(
-  icon?: string
+  icon?: string,
+  type?: MenuCategoryType
 ): string {
-  const iconMap: Record<string, string> = {
+
+  const iconMap: Record<
+    string,
+    string
+  > = {
     Coffee: '☕',
     Utensils: '🍽️',
     Leaf: '🌿',
     Users: '👥',
   };
+
+  if (type === 'drink') {
+    return '🥤';
+  }
 
   return (
     iconMap[icon || ''] ||

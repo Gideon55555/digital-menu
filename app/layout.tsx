@@ -5,7 +5,12 @@ export const metadata: Metadata = {
   title: "A'erkt - Digital Menu",
   description: 'Explore our authentic Ethiopian cuisine menu',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/favicon.ico' },
+    ],
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
   },
   openGraph: {
     title: "A'erkt - Digital Menu",

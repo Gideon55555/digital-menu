@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { supabase } from '@/lib/supabase';
 
 interface MenuItem {
   id: string;
@@ -52,31 +51,27 @@ export default function AdminDashboard() {
       setLoading(true);
       setError('');
 
-      const [menuResult, categoriesResult] = await Promise.all([
-        supabase
-          .from('menu_items')
-          .select('*')
-          .order('display_order', { ascending: true }),
-
-        supabase
-          .from('categories')
-          .select('*')
-          .order('display_order', { ascending: true }),
+      const [menuResponse, categoriesResponse] = await Promise.all([
+        fetch('/api/menu', { cache: 'no-store' }),
+        fetch('/api/categories', { cache: 'no-store' }),
       ]);
 
-      if (menuResult.error) {
-        throw menuResult.error;
+      const menuResult = await menuResponse.json();
+      const categoriesResult = await categoriesResponse.json();
+
+      if (!menuResponse.ok || !menuResult.success) {
+        throw new Error(menuResult.error || 'Failed to load menu data.');
       }
 
-      if (categoriesResult.error) {
-        throw categoriesResult.error;
+      if (!categoriesResponse.ok || !categoriesResult.success) {
+        throw new Error(categoriesResult.error || 'Failed to load category data.');
       }
 
-      setMenuItems(menuResult.data || []);
-      setCategories(categoriesResult.data || []);
+      setMenuItems(Array.isArray(menuResult.data) ? menuResult.data : []);
+      setCategories(Array.isArray(categoriesResult.data) ? categoriesResult.data : []);
     } catch (err) {
       console.error('Dashboard loading error:', err);
-      setError('Failed to load dashboard data.');
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data.');
     } finally {
       setLoading(false);
     }

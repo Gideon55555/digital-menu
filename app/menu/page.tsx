@@ -291,6 +291,8 @@ export default function MenuPage() {
 
           icon: 'Utensils',
 
+          type: 'food',
+
           displayOrder: -1,
 
           visible: true,
