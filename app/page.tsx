@@ -55,7 +55,7 @@ export default function Home() {
             </Link>
 
             <Link
-              href="/admin"
+              href="/admin/reports/orders"
               className="px-3 sm:px-4 py-2 text-restaurant-accent hover:text-restaurant-accent-dark transition-colors text-sm sm:text-base font-medium"
             >
               Admin

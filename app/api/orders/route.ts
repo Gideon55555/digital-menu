@@ -1011,6 +1011,7 @@ export async function PUT(
       new_table_id,
       payment_method,
       amount,
+      receipt_image,
     } = body
 
     if (!id) {
@@ -1203,6 +1204,9 @@ export async function PUT(
 
           payment_status:
             'CONFIRMED',
+
+          receipt_image:
+            receipt_image || null,
 
           uploaded_at:
             new Date().toISOString(),

@@ -21,16 +21,28 @@ export function MenuHeader({
 
   useEffect(() => {
     setMounted(true);
-    const isDarkMode = document.documentElement.classList.contains('dark');
+    const saved = localStorage.getItem('theme');
+    const isDarkMode = saved === 'dark';
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     setIsDark(isDarkMode);
   }, []);
 
   const toggleDarkMode = () => {
     if (mounted) {
       const html = document.documentElement;
-      html.classList.toggle('dark');
-      setIsDark(!isDark);
-      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+      const nextDark = !isDark;
+      if (nextDark) {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+      setIsDark(nextDark);
     }
   };
 

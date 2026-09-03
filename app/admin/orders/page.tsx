@@ -14,7 +14,11 @@ import {
   CreditCard,
   Volume2,
   VolumeX,
+  Camera,
+  Upload,
 } from 'lucide-react';
+import { compressReceiptImage } from '@/lib/utils/image';
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 
 type LocalizedName =
   | string
@@ -97,6 +101,9 @@ export default function OrdersPage() {
 
   const [paymentError, setPaymentError] =
     useState('');
+
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [compressingReceipt, setCompressingReceipt] = useState(false);
 
   const [channelConnected, setChannelConnected] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -414,6 +421,8 @@ export default function OrdersPage() {
     setPaymentAmount('');
     setPaymentMethod('cash');
     setPaymentError('');
+    setReceiptImage(null);
+    setCompressingReceipt(false);
   }
 
   // =========================================================
@@ -484,6 +493,10 @@ export default function OrdersPage() {
             payment_method:
               paymentMethod,
             amount,
+            receipt_image:
+              paymentMethod === 'cbe' || paymentMethod === 'telebirr'
+                ? receiptImage
+                : null,
           }),
         }
       );
@@ -785,6 +798,10 @@ export default function OrdersPage() {
           setPaymentAmount={
             setPaymentAmount
           }
+          receiptImage={receiptImage}
+          setReceiptImage={setReceiptImage}
+          compressingReceipt={compressingReceipt}
+          setCompressingReceipt={setCompressingReceipt}
           error={paymentError}
           processing={
             processingOrderId ===
@@ -1114,6 +1131,10 @@ function PaymentModal({
   setPaymentMethod,
   paymentAmount,
   setPaymentAmount,
+  receiptImage,
+  setReceiptImage,
+  compressingReceipt,
+  setCompressingReceipt,
   error,
   processing,
   onCancel,
@@ -1133,6 +1154,18 @@ function PaymentModal({
     amount: string
   ) => void;
 
+  receiptImage: string | null;
+
+  setReceiptImage: (
+    img: string | null
+  ) => void;
+
+  compressingReceipt: boolean;
+
+  setCompressingReceipt: (
+    loading: boolean
+  ) => void;
+
   error: string;
 
   processing: boolean;
@@ -1141,10 +1174,29 @@ function PaymentModal({
 
   onConfirm: () => void;
 }) {
+  const { language, t } = useAdminLanguage();
+
+  const handleReceiptFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setCompressingReceipt(true);
+      const compressedDataUrl = await compressReceiptImage(file, 900, 0.65);
+      setReceiptImage(compressedDataUrl);
+    } catch (err) {
+      console.error('Failed to compress receipt image:', err);
+      alert(language === 'am' ? 'ፎቶውን ማዘጋጀት አልተቻለም። እባክዎ በድጋሚ ይሞክሩ።' : 'Failed to process image. Please try again.');
+    } finally {
+      setCompressingReceipt(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-900">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
 
         {/* HEADER */}
 
@@ -1153,13 +1205,13 @@ function PaymentModal({
           <div>
 
             <p className="text-xs uppercase tracking-wide text-gray-400">
-              Payment
+              {language === 'am' ? 'የክፍያ መቀበያ' : 'Payment'}
             </p>
 
             <h2 className="text-xl font-bold text-restaurant-text dark:text-white">
               {order.order_number.startsWith('order-')
                 ? order.order_number
-                : `Order #${order.order_number}`}
+                : `#${order.order_number}`}
             </h2>
 
           </div>
@@ -1183,14 +1235,14 @@ function PaymentModal({
           <div className="rounded-xl bg-gray-50 p-4 dark:bg-slate-800">
 
             <p className="text-sm text-gray-500">
-              Amount to pay
+              {language === 'am' ? 'የሚከፈል ጠቅላላ' : 'Amount to pay'}
             </p>
 
             <p className="mt-1 text-3xl font-bold text-restaurant-text dark:text-white">
               {Number(
                 order.total
               ).toFixed(2)}{' '}
-              ETB
+              {language === 'am' ? 'ብር' : 'ETB'}
             </p>
 
           </div>
@@ -1200,7 +1252,7 @@ function PaymentModal({
           <div>
 
             <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">
-              Amount Paid
+              {t.amountPaid}
             </label>
 
             <div className="relative">
@@ -1219,7 +1271,7 @@ function PaymentModal({
               />
 
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
-                ETB
+                {language === 'am' ? 'ብር' : 'ETB'}
               </span>
 
             </div>
@@ -1231,13 +1283,13 @@ function PaymentModal({
           <div>
 
             <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">
-              Payment Method
+              {t.paymentMethodLabel}
             </label>
 
             <div className="grid grid-cols-3 gap-2">
 
               <PaymentMethodButton
-                label="cash"
+                label={t.cash}
                 selected={
                   paymentMethod === 'cash'
                 }
@@ -1249,7 +1301,7 @@ function PaymentModal({
               />
 
               <PaymentMethodButton
-                label="cbe"
+                label={t.cbe}
                 selected={
                   paymentMethod === 'cbe'
                 }
@@ -1261,7 +1313,7 @@ function PaymentModal({
               />
 
               <PaymentMethodButton
-                label="telebirr"
+                label={t.telebirr}
                 selected={
                   paymentMethod ===
                   'telebirr'
@@ -1276,6 +1328,79 @@ function PaymentModal({
             </div>
 
           </div>
+
+          {/* RECEIPT / SCREENSHOT UPLOAD (FOR CBE & TELEBIRR) */}
+          {(paymentMethod === 'cbe' || paymentMethod === 'telebirr') && (
+            <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Camera size={14} className="text-restaurant-accent" />
+                  {t.receiptOptional}
+                </label>
+                {receiptImage && (
+                  <button
+                    type="button"
+                    onClick={() => setReceiptImage(null)}
+                    className="text-xs text-red-600 dark:text-red-400 font-semibold hover:underline"
+                  >
+                    {t.remove}
+                  </button>
+                )}
+              </div>
+
+              {compressingReceipt ? (
+                <div className="p-4 rounded-xl border border-dashed border-restaurant-accent/50 bg-restaurant-accent/5 flex items-center justify-center gap-2 text-xs font-semibold text-restaurant-accent animate-pulse">
+                  <RefreshCw size={15} className="animate-spin" />
+                  {t.compressingPhoto}
+                </div>
+              ) : receiptImage ? (
+                <div className="relative rounded-xl overflow-hidden border border-restaurant-accent/40 bg-gray-50 dark:bg-slate-800 p-2">
+                  <div className="relative h-36 w-full flex items-center justify-center bg-black/5 dark:bg-black/40 rounded-lg overflow-hidden">
+                    <img
+                      src={receiptImage}
+                      alt="Payment proof preview"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 px-1">
+                    <span className="text-green-700 dark:text-green-400 font-bold flex items-center gap-1">
+                      <Check size={12} /> {t.imageAttached}
+                    </span>
+                    <span>~{Math.round((receiptImage.length * 3) / 4 / 1024)} KB</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Upload Photo from gallery */}
+                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gray-300 dark:border-slate-700 hover:border-restaurant-accent hover:bg-cream-50/50 dark:hover:bg-slate-800 cursor-pointer transition text-center">
+                    <Upload size={18} className="text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{t.uploadPhoto}</span>
+                    <span className="text-[10px] text-gray-400">{t.fromGallery}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleReceiptFileChange}
+                    />
+                  </label>
+
+                  {/* Take Photo with Camera */}
+                  <label className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-gray-300 dark:border-slate-700 hover:border-restaurant-accent hover:bg-cream-50/50 dark:hover:bg-slate-800 cursor-pointer transition text-center">
+                    <Camera size={18} className="text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{t.takePhoto}</span>
+                    <span className="text-[10px] text-gray-400">{t.useCamera}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleReceiptFileChange}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ERROR */}
 
@@ -1293,15 +1418,15 @@ function PaymentModal({
 
           <button
             onClick={onCancel}
-            disabled={processing}
+            disabled={processing || compressingReceipt}
             className="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-700 dark:text-gray-200 dark:hover:bg-slate-800"
           >
-            Cancel
+            {t.cancel}
           </button>
 
           <button
             onClick={onConfirm}
-            disabled={processing}
+            disabled={processing || compressingReceipt}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
           >
 
@@ -1312,13 +1437,13 @@ function PaymentModal({
                   className="animate-spin"
                 />
 
-                Saving...
+                {t.saving}
               </>
             ) : (
               <>
                 <Check size={18} />
 
-                Confirm Payment
+                {t.confirmPayment}
               </>
             )}
 

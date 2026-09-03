@@ -2,36 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-
-interface MenuItem {
-  id: string;
-  category_id: string;
-  name: {
-    en: string;
-    am?: string;
-  };
-  description: {
-    en: string;
-    am?: string;
-  };
-  price: number;
-  currency: string;
-  available: boolean;
-  featured: boolean;
-  fasting: boolean;
-  vegetarian: boolean;
-  spicy: boolean;
-}
-
-interface Category {
-  id: string;
-  name: {
-    en: string;
-    am?: string;
-  };
-  display_order: number;
-  visible: boolean;
-}
+import { MenuItem, MenuCategory } from '@/lib/types';
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
@@ -39,7 +10,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -137,11 +108,11 @@ export default function AdminDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
-            Dashboard
+            Menu Report
           </h1>
 
           <p className="text-restaurant-text-light dark:text-gray-400 mt-1">
-            Welcome to your restaurant management panel
+            Overview of menu items, availability and categories
           </p>
         </div>
 
@@ -158,7 +129,7 @@ export default function AdminDashboard() {
         {loading ? (
           <div className="restaurant-card p-8 text-center">
             <p className="text-restaurant-text-light dark:text-gray-400">
-              Loading dashboard...
+              Loading menu report...
             </p>
           </div>
         ) : (
@@ -190,7 +161,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {categories.map((category) => {
                   const count = menuItems.filter(
-                    (item) => item.category_id === category.id
+                    (item) => (item.categoryId || (item as unknown as { category_id?: string }).category_id) === category.id
                   ).length;
 
                   return (
@@ -274,7 +245,7 @@ export default function AdminDashboard() {
                 {recentItems.map((item) => {
                   const category = categories.find(
                     (category) =>
-                      category.id === item.category_id
+                      category.id === (item.categoryId || (item as unknown as { category_id?: string }).category_id)
                   );
 
                   return (

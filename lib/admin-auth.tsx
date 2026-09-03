@@ -42,7 +42,7 @@ export function getAdminHomeRoute(role: string | null | undefined) {
 
   switch (normalized) {
     case 'admin':
-      return '/admin';
+      return '/admin/reports/orders';
     case 'cashier':
     case 'order_manager':
       return '/admin/orders';

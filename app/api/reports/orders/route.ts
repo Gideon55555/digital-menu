@@ -570,32 +570,31 @@ export async function GET(request: NextRequest) {
      * =========================================================
      */
 
-    const graphMap =
-      new Map<string, number>()
+    const graphMap = new Map<string, { amount: number; orderCount: number; sortKey: number }>()
 
     reportOrders.forEach((order) => {
-      const date =
-        new Date(order.updated_at)
+      const date = new Date(order.updated_at || order.created_at)
 
       let key = ''
+      let sortKey = 0
 
       if (period === 'today') {
-        key =
-          date.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
+        const hour = date.getHours()
+        const ampm = hour >= 12 ? 'PM' : 'AM'
+        const displayHour = hour % 12 === 0 ? 12 : hour % 12
+        key = `${displayHour} ${ampm}`
+        sortKey = hour
       } else if (period === 'year') {
-        key =
-          date.toLocaleDateString([], {
-            month: 'short',
-          })
+        key = date.toLocaleDateString([], {
+          month: 'short',
+        })
+        sortKey = date.getMonth()
       } else {
-        key =
-          date.toLocaleDateString([], {
-            month: 'short',
-            day: 'numeric',
-          })
+        key = date.toLocaleDateString([], {
+          month: 'short',
+          day: 'numeric',
+        })
+        sortKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
       }
 
       const amount = Number(
@@ -604,21 +603,20 @@ export async function GET(request: NextRequest) {
           0
       )
 
-      graphMap.set(
-        key,
-        (graphMap.get(key) || 0) +
-          amount
-      )
+      const existing = graphMap.get(key) || { amount: 0, orderCount: 0, sortKey }
+      existing.amount += amount
+      existing.orderCount += 1
+      graphMap.set(key, existing)
     })
 
-    const graph = Array.from(
-      graphMap.entries()
-    ).map(
-      ([label, amount]) => ({
+    const graph = Array.from(graphMap.entries())
+      .map(([label, data]) => ({
         label,
-        amount,
-      })
-    )
+        amount: data.amount,
+        orderCount: data.orderCount,
+        sortKey: data.sortKey,
+      }))
+      .sort((a, b) => a.sortKey - b.sortKey)
 
     return NextResponse.json({
       success: true,

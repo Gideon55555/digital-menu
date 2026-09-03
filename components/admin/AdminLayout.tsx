@@ -27,18 +27,29 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Globe,
 } from 'lucide-react';
 import { getAdminAccessToken, getAdminAuth, normalizeAdminRole, signOutAdmin } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
 import { playNotificationSound } from '@/lib/audio';
+import { AdminLanguageProvider, useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <AdminLanguageProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </AdminLanguageProvider>
+  );
+}
+
+function AdminLayoutInner({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { language, setLanguage, t } = useAdminLanguage();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,10 +74,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('restaurant_theme');
-    const prefersDark =
-      window.matchMedia &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+    const isDark = savedTheme === 'dark';
     setIsDarkMode(isDark);
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -89,6 +97,28 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const role = adminAuth ? normalizeAdminRole(adminAuth.adminUser.role) : 'waiter';
 
+  const formatRoleLabel = (r: string) => {
+    if (language === 'am') {
+      switch (r) {
+        case 'admin':
+          return 'አስተዳዳሪ';
+        case 'cashier':
+          return 'ገንዘብ ተቀባይ';
+        case 'waiter':
+          return 'አስተናጋጅ';
+        case 'kitchen':
+          return 'ማብሰያ';
+        case 'drinks_kitchen':
+          return 'መጠጥ ማዘጋጃ';
+        case 'order_manager':
+          return 'የትዕዛዝ አስተዳዳሪ';
+        default:
+          return r;
+      }
+    }
+    return r.replace('_', ' ');
+  };
+
   useEffect(() => {
     if (!adminAuth) return;
 
@@ -99,7 +129,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         if (json.success) {
           const count = json.unreadCount || 0;
           if (prevAlertsRef.current >= 0 && count > prevAlertsRef.current) {
-            // Play low-stock alarm chime for admin!
             if (role === 'admin') {
               playNotificationSound('low_stock');
             }
@@ -114,7 +143,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
     fetchAlerts();
 
-    // Supabase Realtime channel for instant inventory notification updates
     const channel = supabase
       .channel(`inventory-alerts-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_notifications' }, () => {
@@ -125,7 +153,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       })
       .subscribe();
 
-    // 4-second auto-poll interval backup
     const interval = setInterval(fetchAlerts, 4000);
 
     return () => {
@@ -146,7 +173,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         setAdminAuth(auth);
       } catch (error) {
-        console.error('Admin authentication check failed:', error);
+        console.error('Auth error:', error);
         router.replace('/admin/login');
       } finally {
         setIsLoading(false);
@@ -159,12 +186,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-cream-50 dark:bg-restaurant-bg-dark flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-restaurant-accent/30 border-t-restaurant-accent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-restaurant-text-light dark:text-gray-400">
-            Checking authentication...
-          </p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-restaurant-accent border-t-transparent" />
       </div>
     );
   }
@@ -185,62 +207,62 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     {
-      label: 'Dashboard',
-      icon: LayoutDashboard,
-      href: '/admin',
-    },
-    {
-      label: 'Orders',
-      icon: ClipboardList,
-      href: '/admin/orders',
-    },
-    {
-      label: 'Closed Orders',
+      label: t.report,
       icon: BarChart3,
       href: '/admin/reports/orders',
     },
     {
-      label: 'Tables',
+      label: t.activeOrders,
+      icon: ClipboardList,
+      href: '/admin/orders',
+    },
+    {
+      label: t.menuReport,
+      icon: LayoutDashboard,
+      href: '/admin',
+    },
+    {
+      label: t.tables,
       icon: Table2,
       href: '/admin/tables',
     },
     {
-      label: 'Kitchen',
+      label: t.kitchen,
       icon: ChefHat,
       href: '/admin/kitchen',
     },
     {
-      label: 'Drinks Kitchen',
+      label: t.drinksKitchen,
       icon: Coffee,
       href: '/admin/drinks-kitchen',
     },
     {
-      label: 'Waiter',
+      label: language === 'am' ? 'አስተናጋጅ' : 'Waiter',
       icon: ConciergeBell,
       href: '/waiter',
     },
     {
-      label: 'Inventory',
+      label: t.inventory,
       icon: Package,
       href: '/admin/inventory',
     },
     {
-      label: 'Menu Items',
+      label: language === 'am' ? 'ምግቦች' : 'Menu Items',
       icon: Utensils,
       href: '/admin/menu',
     },
     {
-      label: 'Categories',
+      label: language === 'am' ? 'ምድቦች' : 'Categories',
       icon: FolderOpen,
       href: '/admin/categories',
     },
     {
-      label: 'QR Code',
+      label: language === 'am' ? 'ኪውአር ኮድ' : 'QR Code',
       icon: QrCode,
       href: '/admin/qr-code',
     },
     {
-      label: 'Settings',
+      label: t.settings,
       icon: Settings,
       href: '/admin/settings',
     },
@@ -287,7 +309,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       ? [
           ...allowedNavItems,
           {
-            label: 'Users',
+            label: t.users,
             icon: Users,
             href: '/admin/users',
           },
@@ -323,10 +345,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return null;
   }
 
-  const currentItem = [...navItems, { label: 'Users', href: '/admin/users' }, { label: 'Order Terminal', href: '/order' }].find(
+  const currentItem = [...navItems, { label: t.users, href: '/admin/users' }, { label: 'Order Terminal', href: '/order' }].find(
     (item) => pathname === item.href || (item.href !== '/admin' && pathname.startsWith(`${item.href}/`))
   );
-  const currentPageTitle = currentItem?.label || 'Management Portal';
+  const currentPageTitle = currentItem?.label || (language === 'am' ? 'የአስተዳደር ፖርታል' : 'Management Portal');
 
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-restaurant-bg-dark flex">
@@ -351,45 +373,39 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </h1>
 
           <p className="text-xs text-restaurant-text-light dark:text-gray-400 mt-1 capitalize">
-            {role.replace('_', ' ')} Portal
+            {formatRoleLabel(role)} {language === 'am' ? 'ፖርታል' : 'Portal'}
           </p>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {visibleNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${pathname === item.href ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 font-medium' : 'text-restaurant-text-light hover:bg-cream-100 hover:text-restaurant-accent dark:text-gray-400 dark:hover:bg-slate-800'}`}
-            >
-              <item.icon size={20} />
-              <span className="flex-1">{item.label}</span>
-              {item.href === '/admin/inventory' && unreadAlerts > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white animate-pulse shadow-sm">
-                  {unreadAlerts > 9 ? '9+' : unreadAlerts}
-                </span>
-              )}
-            </Link>
-          ))}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          {visibleNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/admin' && pathname.startsWith(`${item.href}/`));
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-restaurant-accent text-white font-semibold'
+                    : 'text-restaurant-text-light dark:text-gray-400 hover:bg-cream-100 dark:hover:bg-slate-800 hover:text-restaurant-text dark:hover:text-white'
+                }`}
+              >
+                <Icon size={20} />
+                <span className="text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Footer */}
+        {/* Footer / Account & Actions */}
         <div className="p-4 border-t border-cream-200 dark:border-slate-800 space-y-2">
-          <p className="text-xs text-restaurant-text-light dark:text-gray-400">
-            Logged in as:
-            <br />
-
-            <span className="font-medium text-restaurant-text dark:text-gray-200 truncate block">
-              {adminAuth.adminUser.email}
-            </span>
-
-            <span className="text-restaurant-accent capitalize font-semibold">
-              {role.replace('_', ' ')}
-            </span>
-          </p>
-
+          {/* USER PROFILE INFO WITH CHANGE PASSWORD */}
           <button
             onClick={() => {
               setShowPasswordModal(true);
@@ -399,7 +415,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-cream-100 dark:bg-slate-800 text-restaurant-text dark:text-gray-200 rounded-lg hover:bg-cream-200 dark:hover:bg-slate-700 transition text-xs font-semibold"
           >
             <KeyRound size={13} className="text-restaurant-accent" />
-            Change Password
+            {language === 'am' ? 'የይለፍ ቃል ቀይር' : 'Change Password'}
           </button>
 
           <button
@@ -407,7 +423,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors text-sm font-medium"
           >
             <LogOut size={16} />
-            Logout
+            {t.logout}
           </button>
         </div>
       </div>
@@ -420,11 +436,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <h2 className="text-xl font-semibold text-restaurant-text dark:text-white">
               {currentPageTitle}
             </h2>
-            <p className="text-xs text-restaurant-text-light dark:text-gray-400 capitalize">
-              Role: <span className="font-medium text-restaurant-accent">{role.replace('_', ' ')}</span>
+            <p className="text-xs text-restaurant-text-light dark:text-gray-400">
+              {t.role}: <span className="font-medium text-restaurant-accent">{formatRoleLabel(role)}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             {unreadAlerts > 0 ? (
               <Link
                 href="/admin/inventory"
@@ -432,17 +448,45 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 title={`${unreadAlerts} Low Stock Alert(s) from Kitchen`}
               >
                 <AlertTriangle size={18} className="text-red-600 animate-bounce" />
-                <span className="text-xs font-bold">{unreadAlerts} Low Stock!</span>
+                <span className="text-xs font-bold">{unreadAlerts} {t.lowStockAlert}</span>
               </Link>
             ) : (
               <Link
                 href="/admin/inventory"
                 className="relative flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-restaurant-accent hover:bg-cream-100 dark:hover:bg-slate-800 transition"
-                title="Inventory & Stock"
+                title={t.inventory}
               >
                 <Bell size={20} />
               </Link>
             )}
+
+            {/* LANGUAGE SWITCHER: EN / አማ */}
+            <div className="flex items-center rounded-lg border border-cream-200 dark:border-slate-800 bg-cream-50 dark:bg-slate-800 p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setLanguage('en')}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                  language === 'en'
+                    ? 'bg-restaurant-accent text-white shadow-xs'
+                    : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white'
+                }`}
+                title="Switch to English"
+              >
+                EN
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage('am')}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                  language === 'am'
+                    ? 'bg-restaurant-accent text-white shadow-xs'
+                    : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white'
+                }`}
+                title="ወደ አማርኛ ቀይር"
+              >
+                አማ
+              </button>
+            </div>
 
             {/* THEME TOGGLE: DARK / LIGHT (BLACK OPTION) */}
             <button
@@ -453,18 +497,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               {isDarkMode ? (
                 <>
                   <Sun size={15} className="text-amber-400" />
-                  <span className="hidden sm:inline">Light</span>
+                  <span className="hidden sm:inline">{t.lightMode}</span>
                 </>
               ) : (
                 <>
                   <Moon size={15} className="text-slate-700" />
-                  <span className="hidden sm:inline">Black / Dark</span>
+                  <span className="hidden sm:inline">{t.darkMode}</span>
                 </>
               )}
             </button>
 
             <div className="hidden sm:flex items-center gap-2 text-xs text-restaurant-text-light dark:text-gray-400">
-              <span>Logged in as</span>
+              <span>{t.loggedInAs}</span>
               <span className="font-medium text-restaurant-text dark:text-gray-200 bg-cream-100 dark:bg-slate-800 px-2 py-1 rounded">
                 {adminAuth.adminUser.email}
               </span>
@@ -494,7 +538,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <div className="flex items-center gap-2">
                 <KeyRound className="text-restaurant-accent" size={20} />
                 <h3 className="text-base font-bold text-restaurant-text dark:text-white">
-                  Change Your Password
+                  {language === 'am' ? 'የይለፍ ቃልዎን ይቀይሩ' : 'Change Your Password'}
                 </h3>
               </div>
               <button
@@ -507,7 +551,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
             <div className="mt-4 space-y-4">
               <div className="rounded-xl bg-cream-50 dark:bg-slate-800/60 p-3 border border-cream-200 dark:border-slate-800 text-xs">
-                <span className="text-gray-400">Account:</span>{' '}
+                <span className="text-gray-400">{language === 'am' ? 'አካውንት:' : 'Account:'}</span>{' '}
                 <strong className="text-restaurant-text dark:text-white">
                   {adminAuth?.adminUser.email}
                 </strong>
@@ -527,14 +571,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  New Password (min 6 characters) *
+                  {language === 'am' ? 'አዲስ የይለፍ ቃል (ቢያንስ 6 ፊደላት) *' : 'New Password (min 6 characters) *'}
                 </label>
                 <div className="relative">
                   <input
                     type={showMyNewPassword ? 'text' : 'password'}
                     value={myNewPassword}
                     onChange={(e) => setMyNewPassword(e.target.value)}
-                    placeholder="Enter new password"
+                    placeholder={language === 'am' ? 'አዲሱን የይለፍ ቃል ያስገቡ' : 'Enter new password'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 pr-10 text-xs outline-none focus:border-restaurant-accent"
                   />
                   <button
@@ -553,7 +597,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   onClick={() => setShowPasswordModal(false)}
                   className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                 >
-                  Close
+                  {language === 'am' ? 'ዝጋ' : 'Close'}
                 </button>
                 <button
                   type="button"
@@ -577,7 +621,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       setPasswordChangeStatus({
                         loading: false,
                         error: '',
-                        success: 'Your password has been updated successfully!',
+                        success: language === 'am' ? 'የይለፍ ቃልዎ በተሳካ ሁኔታ ተቀይሯል!' : 'Your password has been updated successfully!',
                       });
                       setMyNewPassword('');
                     } catch (err) {
@@ -590,7 +634,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   }}
                   className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                 >
-                  {passwordChangeStatus.loading ? 'Updating...' : 'Save Password'}
+                  {passwordChangeStatus.loading
+                    ? language === 'am'
+                      ? 'በማስቀመጥ ላይ...'
+                      : 'Updating...'
+                    : language === 'am'
+                    ? 'አስቀምጥ'
+                    : 'Save Password'}
                 </button>
               </div>
             </div>
