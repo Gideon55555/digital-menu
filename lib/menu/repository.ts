@@ -101,6 +101,9 @@ export class JsonRepository {
       displayOrder:
         item.display_order,
 
+      costInfo:
+        item.cost_info || null,
+
       createdAt:
         item.created_at,
 
@@ -190,6 +193,9 @@ export class JsonRepository {
 
       displayOrder:
         data.display_order,
+
+      costInfo:
+        data.cost_info || null,
 
       createdAt:
         data.created_at,
@@ -309,55 +315,38 @@ export class JsonRepository {
         new Date().toISOString(),
     };
 
-    const { error } =
-      await supabase
+    const insertPayload: Record<string, any> = {
+      id: newItem.id,
+      category_id: newItem.categoryId,
+      name: newItem.name,
+      description: newItem.description,
+      price: newItem.price,
+      currency: newItem.currency,
+      spicy: newItem.spicy,
+      image: newItem.image ?? null,
+      available: newItem.available,
+      featured: newItem.featured,
+      fasting: newItem.fasting,
+      vegetarian: newItem.vegetarian,
+      display_order: newItem.displayOrder,
+      cost_info: newItem.costInfo ?? null,
+      created_at: newItem.createdAt,
+      updated_at: newItem.updatedAt,
+    };
+
+    let { error } = await supabase
+      .from('menu_items')
+      .insert(insertPayload);
+
+    // Fallback if cost_info column is not created yet
+    if (error && (error.code === '42703' || error.message.includes('cost_info'))) {
+      console.warn('cost_info column does not exist yet in menu_items. Retrying without it.');
+      delete insertPayload.cost_info;
+      const retry = await supabase
         .from('menu_items')
-        .insert({
-          id:
-            newItem.id,
-
-          category_id:
-            newItem.categoryId,
-
-          name:
-            newItem.name,
-
-          description:
-            newItem.description,
-
-          price:
-            newItem.price,
-
-          currency:
-            newItem.currency,
-
-          spicy:
-            newItem.spicy,
-
-          image:
-            newItem.image ?? null,
-
-          available:
-            newItem.available,
-
-          featured:
-            newItem.featured,
-
-          fasting:
-            newItem.fasting,
-
-          vegetarian:
-            newItem.vegetarian,
-
-          display_order:
-            newItem.displayOrder,
-
-          created_at:
-            newItem.createdAt,
-
-          updated_at:
-            newItem.updatedAt,
-        });
+        .insert(insertPayload);
+      error = retry.error;
+    }
 
     if (error) {
       console.error(
@@ -485,10 +474,18 @@ export class JsonRepository {
         updateData.displayOrder;
     }
 
+    if (
+      updateData.costInfo !==
+      undefined
+    ) {
+      updatePayload.cost_info =
+        updateData.costInfo;
+    }
+
     updatePayload.updated_at =
       new Date().toISOString();
 
-    const {
+    let {
       data: updatedData,
       error,
     } = await supabase
@@ -497,6 +494,20 @@ export class JsonRepository {
       .eq('id', id)
       .select('*')
       .single();
+
+    // Fallback if cost_info column does not exist yet
+    if (error && (error.code === '42703' || error.message.includes('cost_info'))) {
+      console.warn('cost_info column does not exist yet in menu_items. Retrying update without it.');
+      delete updatePayload.cost_info;
+      const retry = await supabase
+        .from('menu_items')
+        .update(updatePayload)
+        .eq('id', id)
+        .select('*')
+        .single();
+      updatedData = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error(
@@ -548,6 +559,9 @@ export class JsonRepository {
 
       displayOrder:
         updatedData.display_order,
+
+      costInfo:
+        updatedData.cost_info || null,
 
       createdAt:
         updatedData.created_at,
@@ -801,6 +815,28 @@ export class JsonRepository {
             : 'food',
       };
 
+    if (newCategory.displayOrder !== undefined) {
+      const targetOrder = Math.max(1, newCategory.displayOrder);
+      const { data: allCats } = await supabase
+        .from('categories')
+        .select('id, display_order')
+        .order('display_order', { ascending: true });
+
+      if (allCats && allCats.length > 0) {
+        const targetIndex = Math.min(Math.max(0, targetOrder - 1), allCats.length);
+        allCats.splice(targetIndex, 0, { id: newCategory.id, display_order: targetOrder });
+        for (let i = 0; i < allCats.length; i++) {
+          const cat = allCats[i];
+          const newOrder = i + 1;
+          if (cat.id === newCategory.id) {
+            newCategory.displayOrder = newOrder;
+          } else if (cat.display_order !== newOrder) {
+            await supabase.from('categories').update({ display_order: newOrder }).eq('id', cat.id);
+          }
+        }
+      }
+    }
+
     const { error } =
       await supabase
         .from('categories')
@@ -911,8 +947,29 @@ export class JsonRepository {
       validatedData.displayOrder !==
       undefined
     ) {
-      updatePayload.display_order =
-        validatedData.displayOrder;
+      const targetOrder = Math.max(1, validatedData.displayOrder);
+      const { data: allCats } = await supabase
+        .from('categories')
+        .select('id, display_order')
+        .order('display_order', { ascending: true });
+
+      if (allCats && allCats.length > 0) {
+        const others = allCats.filter((c) => c.id !== id);
+        const targetIndex = Math.min(Math.max(0, targetOrder - 1), others.length);
+        others.splice(targetIndex, 0, { id, display_order: targetOrder });
+
+        for (let i = 0; i < others.length; i++) {
+          const cat = others[i];
+          const newOrder = i + 1;
+          if (cat.id === id) {
+            updatePayload.display_order = newOrder;
+          } else if (cat.display_order !== newOrder) {
+            await supabase.from('categories').update({ display_order: newOrder }).eq('id', cat.id);
+          }
+        }
+      } else {
+        updatePayload.display_order = targetOrder;
+      }
     }
 
     if (

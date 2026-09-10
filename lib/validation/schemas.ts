@@ -123,6 +123,26 @@ export const menuItemSchema = z.object({
 
   allergens: z.array(z.string()).optional(),
 
+  costInfo: z
+    .object({
+      costType: z.enum(['made', 'bought']),
+      purchaseCost: z.number().nonnegative().optional(),
+      ingredients: z
+        .array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            quantity: z.number().nonnegative(),
+            unit: z.string(),
+            cost: z.number().nonnegative(),
+          })
+        )
+        .optional(),
+      targetMargin: z.number().min(0).max(100).optional(),
+    })
+    .nullable()
+    .optional(),
+
   displayOrder: z
     .number()
     .int()

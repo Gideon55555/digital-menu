@@ -36,9 +36,23 @@ export async function GET() {
       )
     }
 
+    // Natural numeric sorting for table numbers (e.g. Table 1, Table 2, ... Table 10)
+    const sortedData = (data || []).sort((a: any, b: any) => {
+      const orderA = a.display_order ?? 0
+      const orderB = b.display_order ?? 0
+      if (orderA !== orderB) {
+        return orderA - orderB
+      }
+      return String(a.table_number || '').localeCompare(
+        String(b.table_number || ''),
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      )
+    })
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: sortedData,
     })
   } catch (error) {
     console.error('Unexpected error:', error)
@@ -686,6 +700,28 @@ export async function PUT(
   try {
     const body = await request.json()
 
+    // ------------------------------------------------------
+    // Batch reorder tables
+    // ------------------------------------------------------
+    if (body.action === 'reorder' && Array.isArray(body.orders)) {
+      for (const item of body.orders) {
+        if (item.id && typeof item.display_order === 'number') {
+          await supabase
+            .from('tables')
+            .update({
+              display_order: item.display_order,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', item.id)
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Tables reordered successfully',
+      })
+    }
+
     const {
       id,
       table_number,
@@ -1125,42 +1161,105 @@ export async function DELETE(
     }
 
     // ------------------------------------------------------
-    // Deactivate
+    // Active order check (Cannot delete if seated/active order exists)
     // ------------------------------------------------------
+    const { data: activeOrders } = await supabase
+      .from('orders')
+      .select('id, order_number')
+      .eq('table_id', id)
+      .not('status', 'in', '(completed,cancelled)')
+      .limit(1)
 
-    const {
-      data,
-      error,
-    } = await supabase
-      .from('tables')
-      .update({
-        active: false,
-        status: 'inactive',
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      console.error(
-        'Error deactivating table:',
-        error
-      )
-
+    if (activeOrders && activeOrders.length > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: error.message,
+          error: `Cannot delete ${table.name || `Table ${table.table_number}`} because it currently has an active order (#${activeOrders[0].order_number}). Please complete, cancel, or switch the order first.`,
         },
+        { status: 400 }
+      )
+    }
+
+    const isDeactivateOnly = searchParams.get('action') === 'deactivate'
+
+    if (isDeactivateOnly) {
+      // ------------------------------------------------------
+      // Soft Deactivate
+      // ------------------------------------------------------
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('tables')
+        .update({
+          active: false,
+          status: 'inactive',
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error deactivating table:', error)
+        return NextResponse.json(
+          { success: false, error: error.message },
+          { status: 500 }
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        data,
+      })
+    }
+
+    // ------------------------------------------------------
+    // Permanent Deletion
+    // ------------------------------------------------------
+    // 1. Unlink past completed orders so foreign keys don't block deletion
+    await supabase
+      .from('orders')
+      .update({ table_id: null })
+      .eq('table_id', id)
+
+    // 2. Remove table sessions for this table
+    await supabase
+      .from('table_sessions')
+      .delete()
+      .eq('table_id', id)
+
+    // 3. Remove child split sections if any
+    const { data: children } = await supabase
+      .from('tables')
+      .select('id')
+      .eq('parent_table_id', id)
+
+    if (children && children.length > 0) {
+      const childIds = children.map((c) => c.id)
+      await supabase.from('orders').update({ table_id: null }).in('table_id', childIds)
+      await supabase.from('table_sessions').delete().in('table_id', childIds)
+      await supabase.from('tables').delete().in('id', childIds)
+    }
+
+    // 4. Delete the table record itself
+    const { error: deleteError } = await supabase
+      .from('tables')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      console.error('Error deleting table:', deleteError)
+      return NextResponse.json(
+        { success: false, error: deleteError.message },
         { status: 500 }
       )
     }
 
     return NextResponse.json({
       success: true,
-      data,
+      message: `Table ${table.table_number} deleted successfully`,
     })
   } catch (error) {
     console.error(

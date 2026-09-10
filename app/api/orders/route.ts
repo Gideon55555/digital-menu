@@ -29,32 +29,18 @@ const PAYMENT_METHODS = [
 ]
 
 /* =========================================================
-   GET NEXT ORDER NUMBER (Resets to order-1 every day)
+   GET NEXT ORDER NUMBER
 ========================================================= */
 
 async function getNextOrderNumber() {
-  const now = new Date()
-  // Start of today: 00:00:00.000 in UTC
-  const startOfDay = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      0,
-      0,
-      0,
-      0
-    )
-  ).toISOString()
-
   const { data, error } = await supabase
     .from('orders')
-    .select('order_number, created_at')
-    .gte('created_at', startOfDay)
+    .select('order_number')
     .order('created_at', { ascending: false })
+    .limit(500)
 
   if (error) {
-    console.error('Failed to query orders for today:', error)
+    console.error('Failed to query orders for sequence number:', error)
   }
 
   let maxSequence = 0
@@ -66,8 +52,8 @@ async function getNextOrderNumber() {
         const match = String(ord.order_number).match(/(?:order-)?(\d+)$/i)
         if (match) {
           const num = parseInt(match[1], 10)
-          // Filter out legacy epoch timestamps (>100000)
-          if (!isNaN(num) && num > maxSequence && num < 100000) {
+          // Filter out legacy epoch timestamps (>1000000)
+          if (!isNaN(num) && num > maxSequence && num < 1000000) {
             maxSequence = num
           }
         }
@@ -75,8 +61,25 @@ async function getNextOrderNumber() {
     }
   }
 
-  const nextNumber = maxSequence + 1
-  return `order-${nextNumber}`
+  let nextNumber = maxSequence + 1
+  let candidate = `order-${nextNumber}`
+
+  // Safety check: guarantee uniqueness against database
+  while (true) {
+    const { data: existing } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('order_number', candidate)
+      .maybeSingle()
+
+    if (!existing) {
+      break
+    }
+    nextNumber++
+    candidate = `order-${nextNumber}`
+  }
+
+  return candidate
 }
 
 /* =========================================================
@@ -473,8 +476,16 @@ export async function POST(
       customer_name,
       customer_phone,
       notes,
+      creator_role,
       items,
     } = body
+
+    const isDirectReady =
+      creator_role === 'cashier' ||
+      creator_role === 'order_manager' ||
+      body.direct_ready === true
+
+    const initialStatus = isDirectReady ? 'ready' : 'pending'
 
     if (
       !Array.isArray(items) ||
@@ -837,7 +848,7 @@ export async function POST(
             notes:
               item.notes,
             status:
-              'pending',
+              initialStatus,
           }
         }
       )
@@ -846,59 +857,54 @@ export async function POST(
        CREATE ORDER
     ===================================================== */
 
-    const orderNumber =
-      await getNextOrderNumber()
+    let order: any = null
+    let orderError: any = null
 
-    const {
-      data: order,
-      error: orderError,
-    } = await supabase
-      .from('orders')
-      .insert({
-        order_number:
-          orderNumber,
+    // Retry up to 3 times in case of concurrent order number insertion
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const orderNumber = await getNextOrderNumber()
 
-        table_id:
-          table_id || null,
-
-        table_session_id:
-          resolvedTableSessionId ||
-          null,
-
-        status:
-          'pending',
-
-        order_type,
-
-        waiter_id:
-          waiter_id || null,
-
-        customer_name:
-          customer_name || null,
-
-        customer_phone:
-          customer_phone || null,
-
-        notes: notes
-          ? (waiter_name ? `${notes} · [Waiter: ${waiter_name}]` : notes)
-          : (waiter_name ? `[Waiter: ${waiter_name}]` : null),
-
-        subtotal,
-
-        discount: 0,
-
-        tax: 0,
-
-        total:
+      const res = await supabase
+        .from('orders')
+        .insert({
+          order_number: orderNumber,
+          table_id: table_id || null,
+          table_session_id: resolvedTableSessionId || null,
+          status: initialStatus,
+          order_type,
+          waiter_id: waiter_id || null,
+          customer_name: customer_name || null,
+          customer_phone: customer_phone || null,
+          notes: notes
+            ? (waiter_name ? `${notes} · [Waiter: ${waiter_name}]` : notes)
+            : (waiter_name ? `[Waiter: ${waiter_name}]` : null),
           subtotal,
-      })
-      .select()
-      .single()
+          discount: 0,
+          tax: 0,
+          total: subtotal,
+        })
+        .select()
+        .single()
 
-    if (
-      orderError ||
-      !order
-    ) {
+      if (!res.error && res.data) {
+        order = res.data
+        orderError = null
+        break
+      }
+
+      orderError = res.error
+      if (
+        res.error?.code === '23505' ||
+        res.error?.message?.includes('orders_order_number_key')
+      ) {
+        console.warn(`Order number collision on ${orderNumber}, retrying... (attempt ${attempt + 1})`)
+        continue
+      } else {
+        break
+      }
+    }
+
+    if (orderError || !order) {
       return NextResponse.json(
         {
           success: false,
@@ -955,10 +961,12 @@ export async function POST(
     await logOrderHistory({
       orderId: order.id,
       previousStatus: null,
-      newStatus: order.status || 'pending',
-      note: waiter_name
-        ? `Order placed by ${waiter_name}${waiter_email ? ` (${waiter_email})` : ''}`
-        : 'Order placed',
+      newStatus: initialStatus,
+      note: isDirectReady
+        ? `Direct order created by cashier${waiter_name ? ` (${waiter_name})` : ''} - Marked Ready for Payment`
+        : waiter_name
+          ? `Order placed by ${waiter_name}${waiter_email ? ` (${waiter_email})` : ''}`
+          : 'Order placed',
       changedBy: waiter_name || waiter_id || null,
     })
 

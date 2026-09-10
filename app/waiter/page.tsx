@@ -497,6 +497,7 @@ export default function WaiterPage() {
           waiter_id: currentWaiter?.id || null,
           waiter_name: waiterName,
           waiter_email: currentWaiter?.email || null,
+          creator_role: currentWaiter?.role || null,
           items: cart.map((item) => ({
             menu_item_id: item.menuItemId,
             quantity: item.quantity,

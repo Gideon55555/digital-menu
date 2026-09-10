@@ -4,6 +4,7 @@
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { getAdminAuth, normalizeAdminRole } from '@/lib/admin-auth'
 import { MenuItem, MenuCategory } from '@/lib/types'
 import {
   Search,
@@ -446,6 +447,9 @@ export default function OrderPage() {
       setError('')
       setMessage('')
 
+      const auth = await getAdminAuth()
+      const role = auth ? normalizeAdminRole(auth.adminUser.role) : null
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
@@ -455,6 +459,9 @@ export default function OrderPage() {
           table_id: selectedTable.id,
           table_session_id: activeSession.id,
           order_type: 'dine_in',
+          waiter_id: auth?.adminUser?.id || null,
+          waiter_name: auth?.adminUser?.name || null,
+          creator_role: role,
           items: cart.map((item) => ({
             menu_item_id: item.menuItem.id,
             quantity: item.quantity,

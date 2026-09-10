@@ -644,6 +644,10 @@ export default function CategoriesPage() {
 
                   </span>
 
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300 ml-2">
+                    #{category.displayOrder}
+                  </span>
+
                 </div>
 
                 {/* =================================================
@@ -1118,13 +1122,18 @@ export default function CategoriesPage() {
                   {/* DISPLAY ORDER */}
 
                   <label>
-                    <span className="block mb-2 font-medium">
-                      Display Order
-                    </span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-medium text-xs">
+                        Display Order / Position Index
+                      </span>
+                      <span className="text-[10px] text-restaurant-accent font-semibold">
+                        Auto-adjusts other categories
+                      </span>
+                    </div>
 
                     <input
                       type="number"
-                      min="0"
+                      min="1"
                       step="1"
                       value={
                         editingCategory.displayOrder
@@ -1134,16 +1143,19 @@ export default function CategoriesPage() {
                           ...editingCategory,
                           displayOrder:
                             Math.max(
-                              0,
+                              1,
                               Number(
                                 e.target.value
-                              ) || 0
+                              ) || 1
                             ),
                         })
                       }
                       disabled={saving}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     />
+                    <span className="block mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                      If you set this category to 2, the current #2 will move to #3, #3 to #4, etc.
+                    </span>
                   </label>
 
                 </div>

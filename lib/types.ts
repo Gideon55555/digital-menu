@@ -27,6 +27,21 @@ export interface MenuCategory {
 // MENU ITEM
 // =========================================================
 
+export interface IngredientItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  cost: number;
+}
+
+export interface ItemCostInfo {
+  costType: 'made' | 'bought';
+  purchaseCost?: number;
+  ingredients?: IngredientItem[];
+  targetMargin?: number;
+}
+
 export interface MenuItem {
   id: string;
   categoryId: string;
@@ -42,6 +57,7 @@ export interface MenuItem {
   spicy: boolean;
   ingredients?: string[];
   allergens?: string[];
+  costInfo?: ItemCostInfo | null;
   displayOrder: number;
   createdAt?: string;
   updatedAt?: string;

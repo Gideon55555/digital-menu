@@ -16,8 +16,10 @@ import {
   Check,
   Power,
   AlertCircle,
-  Search,
   Receipt,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 
 type Table = {
@@ -93,6 +95,10 @@ export default function TablesPage() {
   const [newTableName, setNewTableName] = useState('')
   const [newCapacity, setNewCapacity] = useState('4')
   const [saving, setSaving] = useState(false)
+
+  // Delete modal state
+  const [tableToDelete, setTableToDelete] = useState<Table | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // ---------------------------------------------------------
   // LOAD TABLES & ACTIVE SEATED ORDERS
@@ -199,6 +205,15 @@ export default function TablesPage() {
           (t.name && t.name.toLowerCase().includes(q))
         )
       })
+      .sort((a, b) => {
+        const orderA = a.display_order ?? 0
+        const orderB = b.display_order ?? 0
+        if (orderA !== orderB) return orderA - orderB
+        return a.table_number.localeCompare(b.table_number, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        })
+      })
   }, [tables, search])
 
   const getChildSections = useCallback(
@@ -214,6 +229,72 @@ export default function TablesPage() {
     },
     [activeOrders]
   )
+
+  // ---------------------------------------------------------
+  // REORDER TABLES FREELY
+  // ---------------------------------------------------------
+
+  const handleMoveTable = async (currentIndex: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (targetIndex < 0 || targetIndex >= parentTables.length) return
+
+    const newParents = [...parentTables]
+    const [moved] = newParents.splice(currentIndex, 1)
+    newParents.splice(targetIndex, 0, moved)
+
+    // Build batch reorder array
+    const ordersToUpdate = newParents.map((t, idx) => ({
+      id: t.id,
+      display_order: idx + 1,
+    }))
+
+    // Optimistically update local state
+    setTables((prev) =>
+      prev.map((t) => {
+        const found = ordersToUpdate.find((o) => o.id === t.id)
+        return found ? { ...t, display_order: found.display_order } : t
+      })
+    )
+
+    try {
+      await fetch('/api/tables', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reorder',
+          orders: ordersToUpdate,
+        }),
+      })
+    } catch (e) {
+      console.error('Failed to save table order', e)
+    }
+  }
+
+  // ---------------------------------------------------------
+  // DELETE TABLE PERMANENTLY
+  // ---------------------------------------------------------
+
+  const confirmDeleteTable = async () => {
+    if (!tableToDelete) return
+    setDeleting(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/tables?id=${encodeURIComponent(tableToDelete.id)}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to delete table')
+      }
+      setSuccessMessage(`Table ${tableToDelete.table_number} deleted successfully`)
+      setTableToDelete(null)
+      loadData(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete table')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // ---------------------------------------------------------
   // SWITCH TABLE (TRANSFER ACTIVE ORDER)
@@ -639,7 +720,7 @@ export default function TablesPage() {
         {/* TABLES GRID */}
         {!loading && parentTables.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {parentTables.map((table) => {
+            {parentTables.map((table, idx) => {
               const children = getChildSections(table.id)
               const isSplit = children.length > 0
               const activeOrder = getActiveOrderForTable(table.id)
@@ -691,8 +772,28 @@ export default function TablesPage() {
                         </div>
                       </div>
 
-                      {/* EDIT / DEACTIVATE MENU */}
+                      {/* REORDER, EDIT, DELETE & POWER MENU */}
                       <div className="flex items-center gap-1">
+                        {/* Move Up / Down Buttons */}
+                        <div className="flex items-center rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5 mr-1">
+                          <button
+                            onClick={() => handleMoveTable(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-20 disabled:hover:text-gray-500 transition"
+                            title="Move table left / earlier in list"
+                          >
+                            <ArrowUp size={12} className="-rotate-90 sm:rotate-0" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveTable(idx, 'down')}
+                            disabled={idx === parentTables.length - 1}
+                            className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-20 disabled:hover:text-gray-500 transition"
+                            title="Move table right / later in list"
+                          >
+                            <ArrowDown size={12} className="-rotate-90 sm:rotate-0" />
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => handleStartEdit(table)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition"
@@ -704,12 +805,19 @@ export default function TablesPage() {
                           onClick={() => handleToggleActive(table)}
                           className={`p-1.5 rounded-lg transition ${
                             table.active
-                              ? 'text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30'
+                              ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
                               : 'text-green-600 hover:bg-green-50'
                           }`}
                           title={table.active ? 'Deactivate Table' : 'Reactivate Table'}
                         >
                           <Power size={14} />
+                        </button>
+                        <button
+                          onClick={() => setTableToDelete(table)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
+                          title="Delete Table"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -1247,6 +1355,57 @@ export default function TablesPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        {/* DELETE CONFIRMATION MODAL */}
+        {tableToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-cream-200 dark:border-slate-800">
+              <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-3">
+                <div className="p-2.5 rounded-full bg-red-100 dark:bg-red-950/50">
+                  <Trash2 size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-restaurant-text dark:text-white">
+                    Delete Table {tableToDelete.table_number}?
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {tableToDelete.name || `Table ${tableToDelete.table_number}`}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+                Are you sure you want to permanently delete this table? Any split sections associated with this table will also be removed.
+              </p>
+
+              {error && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-700 dark:text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTableToDelete(null)
+                    setError('')
+                  }}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl border border-gray-200 dark:border-slate-800 px-4 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteTable}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50 transition"
+                >
+                  {deleting ? 'Deleting...' : 'Delete Table'}
+                </button>
+              </div>
             </div>
           </div>
         )}

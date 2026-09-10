@@ -27,6 +27,8 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Boxes,
+  ShoppingCart,
 } from 'lucide-react';
 import { getAdminAccessToken, getAdminAuth, normalizeAdminRole, signOutAdmin } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
@@ -236,6 +238,11 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       href: '/admin/drinks-kitchen',
     },
     {
+      label: language === 'am' ? 'ትዕዛዝ መውሰጃ' : 'Take Order',
+      icon: ShoppingCart,
+      href: '/order',
+    },
+    {
       label: language === 'am' ? 'አስተናጋጅ' : 'Waiter',
       icon: ConciergeBell,
       href: '/waiter',
@@ -244,6 +251,11 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       label: t.inventory,
       icon: Package,
       href: '/admin/inventory',
+    },
+    {
+      label: language === 'am' ? 'የካፌ ቁሳቁሶች' : 'Cafe Materials',
+      icon: Boxes,
+      href: '/admin/materials',
     },
     {
       label: language === 'am' ? 'ምግቦች' : 'Menu Items',
@@ -272,17 +284,10 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       return true;
     }
 
-    if (role === 'cashier') {
+    if (role === 'cashier' || role === 'order_manager') {
       return [
         '/admin/orders',
-        '/admin/reports/orders',
-        '/admin/tables',
-      ].includes(item.href);
-    }
-
-    if (role === 'order_manager') {
-      return [
-        '/admin/orders',
+        '/order',
         '/admin/reports/orders',
         '/admin/tables',
       ].includes(item.href);
