@@ -72,6 +72,7 @@ type Tab = 'new' | 'ready';
 type PaymentMethod = 'cash' | 'cbe' | 'telebirr';
 
 export default function OrdersPage() {
+  const { isAmharic } = useAdminLanguage();
   const [orders, setOrders] = useState<Order[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
   const [activeTab, setActiveTab] =
@@ -588,7 +589,7 @@ export default function OrdersPage() {
       <AdminLayout>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="text-gray-500">
-            Loading orders...
+            {isAmharic ? 'ትዕዛዞችን በመጫን ላይ...' : 'Loading orders...'}
           </div>
         </div>
       </AdminLayout>
@@ -609,11 +610,13 @@ export default function OrdersPage() {
 
           <div>
             <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
-              Orders
+              {isAmharic ? 'ክፍት ትዕዛዞች' : 'Orders'}
             </h1>
 
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Manage orders and record payments.
+              {isAmharic
+                ? 'የትዕዛዝ ሁኔታን ይቆጣጠሩ እና ክፍያዎችን ይቀበሉ'
+                : 'Manage orders and record payments.'}
             </p>
           </div>
 
@@ -628,7 +631,15 @@ export default function OrdersPage() {
               title={channelConnected ? 'Realtime Channel Connected' : 'Auto-Sync Active'}
             >
               <span className={`h-2 w-2 rounded-full ${channelConnected ? 'bg-green-500 animate-ping' : 'bg-amber-500'}`} />
-              <span>{channelConnected ? 'Live Channel Open' : 'Auto-Sync Active'}</span>
+              <span>
+                {channelConnected
+                  ? isAmharic
+                    ? 'የቀጥታ መስመር ክፍት ነው'
+                    : 'Live Channel Open'
+                  : isAmharic
+                  ? 'ቀጣይ ማመሳሰል ይሰራል'
+                  : 'Auto-Sync Active'}
+              </span>
             </div>
 
             {/* AUDIO NOTIFICATION TOGGLE */}
@@ -642,7 +653,15 @@ export default function OrdersPage() {
               title={soundEnabled ? 'Chime sound is ON' : 'Chime sound is MUTED'}
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-              <span>{soundEnabled ? 'Chime ON' : 'Muted'}</span>
+              <span>
+                {soundEnabled
+                  ? isAmharic
+                    ? 'ድምጽ በርቷል'
+                    : 'Chime ON'
+                  : isAmharic
+                  ? 'ድምጽ ጠፍቷል'
+                  : 'Muted'}
+              </span>
             </button>
 
             {/* MANUAL REFRESH */}
@@ -655,7 +674,15 @@ export default function OrdersPage() {
                 size={14}
                 className={refreshing ? 'animate-spin' : ''}
               />
-              <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+              <span>
+                {refreshing
+                  ? isAmharic
+                    ? 'በማደስ ላይ...'
+                    : 'Syncing...'
+                  : isAmharic
+                  ? 'አድስ'
+                  : 'Sync'}
+              </span>
             </button>
           </div>
 
@@ -685,7 +712,7 @@ export default function OrdersPage() {
 
               <Bell size={18} />
 
-              New Orders
+              {isAmharic ? 'አዳዲስ ትዕዛዞች' : 'New Orders'}
 
               {newOrders.length > 0 && (
                 <span className="min-w-[22px] h-5 px-1.5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs">
@@ -721,7 +748,7 @@ export default function OrdersPage() {
 
               <PackageCheck size={18} />
 
-              Ready Orders
+              {isAmharic ? 'የተዘጋጁ ትዕዛዞች' : 'Ready Orders'}
 
               {readyOrders.length > 0 && (
                 <span className="min-w-[22px] h-5 px-1.5 flex items-center justify-center rounded-full bg-green-500 text-white text-xs">
@@ -745,6 +772,7 @@ export default function OrdersPage() {
 
           <EmptyState
             type={activeTab}
+            isAmharic={isAmharic}
           />
 
         ) : (
@@ -758,6 +786,7 @@ export default function OrdersPage() {
                   order={order}
                   activeTab={activeTab}
                   tables={tables}
+                  isAmharic={isAmharic}
                   processing={
                     processingOrderId ===
                     order.id
@@ -832,6 +861,7 @@ function OrderCard({
   onConfirmAndSend,
   onCancel,
   onRecordPayment,
+  isAmharic,
 }: {
   order: Order;
   activeTab: Tab;
@@ -849,6 +879,7 @@ function OrderCard({
   onRecordPayment: (
     order: Order
   ) => void;
+  isAmharic?: boolean;
 }) {
   return (
     <div className="restaurant-card overflow-hidden">
@@ -862,7 +893,7 @@ function OrderCard({
           <div>
 
             <p className="text-xs uppercase tracking-wide text-gray-400">
-              Order
+              {isAmharic ? 'ትዕዛዝ' : 'Order'}
             </p>
 
             <h2 className="text-2xl font-bold text-restaurant-text dark:text-white">
@@ -879,7 +910,7 @@ function OrderCard({
 
               <Clock size={13} />
 
-              New
+              {isAmharic ? 'አዲስ' : 'New'}
 
             </span>
 
@@ -889,7 +920,7 @@ function OrderCard({
 
               <PackageCheck size={13} />
 
-              Ready
+              {isAmharic ? 'ተዘጋጅቷል' : 'Ready'}
 
             </span>
 
@@ -902,13 +933,14 @@ function OrderCard({
         <div className="mt-3">
 
           <p className="text-xs text-gray-400">
-            Table
+            {isAmharic ? 'ጠረጴዛ' : 'Table'}
           </p>
 
           <p className="font-semibold text-restaurant-text dark:text-white">
             {formatTableName(
               order.table_id,
-              tables
+              tables,
+              isAmharic
             )}
           </p>
 
@@ -929,14 +961,14 @@ function OrderCard({
       <div className="p-5">
 
         <p className="text-xs uppercase tracking-wide font-semibold text-gray-400 mb-3">
-          Items
+          {isAmharic ? 'የታዘዙ ምግቦች' : 'Items'}
         </p>
 
         {!order.items ||
         order.items.length === 0 ? (
 
           <div className="py-5 text-center text-sm text-red-500">
-            No items in this order.
+            {isAmharic ? 'ምንም እቃ የለም።' : 'No items in this order.'}
           </div>
 
         ) : (
@@ -948,6 +980,7 @@ function OrderCard({
                 <OrderItemRow
                   key={item.id}
                   item={item}
+                  isAmharic={isAmharic}
                 />
               )
             )}
@@ -962,7 +995,7 @@ function OrderCard({
           <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
 
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-              Order note
+              {isAmharic ? 'ማስታወሻ' : 'Order note'}
             </p>
 
             <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
@@ -981,14 +1014,14 @@ function OrderCard({
         <div className="flex items-center justify-between">
 
           <span className="text-sm text-gray-500">
-            Total
+            {isAmharic ? 'ጠቅላላ ድምር' : 'Total'}
           </span>
 
           <span className="text-xl font-bold text-restaurant-text dark:text-white">
             {Number(
               order.total
             ).toFixed(2)}{' '}
-            ETB
+            {isAmharic ? 'ብር' : 'ETB'}
           </span>
 
         </div>
@@ -1016,7 +1049,11 @@ function OrderCard({
               <Check size={18} />
 
               {processing
-                ? 'Sending...'
+                ? isAmharic
+                  ? 'በመላክ ላይ...'
+                  : 'Sending...'
+                : isAmharic
+                ? 'አረጋግጥና ላክ'
                 : 'Confirm & Send'}
 
             </button>
@@ -1028,7 +1065,7 @@ function OrderCard({
                 )
               }
               disabled={processing}
-              title="Cancel order"
+              title={isAmharic ? 'ትዕዛዝ ሰርዝ' : 'Cancel order'}
               className="px-4 py-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 disabled:opacity-50"
             >
 
@@ -1050,7 +1087,7 @@ function OrderCard({
 
             <CreditCard size={18} />
 
-            Record Payment
+            {isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}
 
           </button>
 
@@ -1068,8 +1105,10 @@ function OrderCard({
 
 function OrderItemRow({
   item,
+  isAmharic,
 }: {
   item: OrderItem;
+  isAmharic?: boolean;
 }) {
   const itemName =
     getItemName(item.item_name);
@@ -1078,6 +1117,9 @@ function OrderItemRow({
     getAmharicName(
       item.item_name
     );
+
+  const primaryName = isAmharic && amharicName ? amharicName : itemName;
+  const secondaryName = isAmharic && amharicName ? itemName : amharicName;
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -1091,18 +1133,18 @@ function OrderItemRow({
         <div className="min-w-0">
 
           <p className="font-medium text-restaurant-text dark:text-white">
-            {itemName}
+            {primaryName}
           </p>
 
-          {amharicName && (
+          {secondaryName && secondaryName !== primaryName && (
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {amharicName}
+              {secondaryName}
             </p>
           )}
 
           {item.notes && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Note: {item.notes}
+              {isAmharic ? 'ማስታወሻ: ' : 'Note: '}{item.notes}
             </p>
           )}
 
@@ -1114,12 +1156,14 @@ function OrderItemRow({
         {Number(
           item.subtotal
         ).toFixed(2)}{' '}
-        ETB
+        {isAmharic ? 'ብር' : 'ETB'}
       </span>
 
     </div>
   );
 }
+
+
 
 /* ============================================================
    PAYMENT MODAL
@@ -1541,10 +1585,11 @@ function getAmharicName(
 
 function formatTableName(
   tableId: string | null,
-  tables: Table[]
+  tables: Table[],
+  isAmharic?: boolean
 ): string {
   if (!tableId) {
-    return 'Takeaway';
+    return isAmharic ? 'ፓኮ / መውሰጃ' : 'Takeaway';
   }
 
   const table =
@@ -1554,12 +1599,12 @@ function formatTableName(
     );
 
   if (!table) {
-    return 'Table';
+    return isAmharic ? 'ጠረጴዛ' : 'Table';
   }
 
   return (
     table.name ||
-    `Table ${table.table_number}`
+    (isAmharic ? `ጠረጴዛ ${table.table_number}` : `Table ${table.table_number}`)
   );
 }
 
@@ -1588,8 +1633,10 @@ function formatTime(
 
 function EmptyState({
   type,
+  isAmharic,
 }: {
   type: Tab;
+  isAmharic?: boolean;
 }) {
   if (type === 'new') {
     return (
@@ -1605,11 +1652,13 @@ function EmptyState({
         </div>
 
         <h3 className="font-semibold text-restaurant-text dark:text-white">
-          No new orders
+          {isAmharic ? 'ምንም አዲስ ትዕዛዝ የለም' : 'No new orders'}
         </h3>
 
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          New customer orders will appear here.
+          {isAmharic
+            ? 'አዳዲስ የደንበኛ ትዕዛዞች እዚህ ይታያሉ።'
+            : 'New customer orders will appear here.'}
         </p>
 
       </div>
@@ -1629,11 +1678,13 @@ function EmptyState({
       </div>
 
       <h3 className="font-semibold text-restaurant-text dark:text-white">
-        No ready orders
+        {isAmharic ? 'ምንም የተዘጋጀ ትዕዛዝ የለም' : 'No ready orders'}
       </h3>
 
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Orders completed by the kitchen will appear here.
+        {isAmharic
+          ? 'በማብሰያ ቤት የተጠናቀቁ ትዕዛዞች እዚህ ይታያሉ።'
+          : 'Orders completed by the kitchen will appear here.'}
       </p>
 
     </div>

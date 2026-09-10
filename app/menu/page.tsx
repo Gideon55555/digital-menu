@@ -719,7 +719,7 @@ export default function MenuPage() {
       <div className="min-h-screen bg-cream-50 dark:bg-restaurant-bg-dark flex items-center justify-center">
         <div className="text-center">
           <div className="animate-pulse text-lg">
-            Loading menu...
+            {language === 'am' ? 'ሜኑ በመጫን ላይ...' : 'Loading menu...'}
           </div>
         </div>
       </div>
@@ -735,7 +735,7 @@ export default function MenuPage() {
       <div className="min-h-screen bg-cream-50 dark:bg-restaurant-bg-dark flex items-center justify-center px-4">
         <div className="restaurant-card p-8 max-w-md text-center">
           <h1 className="text-xl font-bold text-red-600 mb-3">
-            Unable to load menu
+            {language === 'am' ? 'ሜኑ መጫን አልተቻለም' : 'Unable to load menu'}
           </h1>
 
           <p className="text-restaurant-text-light dark:text-gray-400 mb-6">
@@ -748,7 +748,7 @@ export default function MenuPage() {
             }
             className="px-6 py-2 bg-restaurant-accent text-white rounded-lg hover:bg-restaurant-accent-dark"
           >
-            Try Again
+            {language === 'am' ? 'እንደገና ሞክር' : 'Try Again'}
           </button>
         </div>
       </div>
@@ -768,7 +768,7 @@ export default function MenuPage() {
 
       {tableNumber && (
         <div className="bg-restaurant-accent text-white text-center py-2 text-sm font-medium">
-          📍 Table {tableNumber}
+          {language === 'am' ? `📍 ጠረጴዛ ${tableNumber}` : `📍 Table ${tableNumber}`}
         </div>
       )}
 
@@ -796,6 +796,7 @@ export default function MenuPage() {
         onSelectCategory={
           setSelectedCategory
         }
+        language={language}
       />
 
       {/* =====================================================
@@ -813,7 +814,7 @@ export default function MenuPage() {
             onSearch={
               setSearchQuery
             }
-            placeholder="Search for dishes..."
+            placeholder={language === 'am' ? 'ምግቦችን ወይም መጠጦችን ይፈልጉ...' : 'Search for dishes...'}
           />
         </div>
 
@@ -829,7 +830,7 @@ export default function MenuPage() {
             <div className="mb-12">
 
               <h2 className="text-2xl sm:text-3xl font-serif font-bold text-restaurant-text dark:text-white mb-6">
-                Featured Items
+                {language === 'am' ? 'ተመራጭ ምግቦች' : 'Featured Items'}
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -856,6 +857,7 @@ export default function MenuPage() {
                           item.id
                         )
                       }
+                      language={language}
                     />
                   ))}
 
@@ -944,9 +946,9 @@ export default function MenuPage() {
 
                               <h2 className="text-xl sm:text-2xl font-serif font-bold text-restaurant-text dark:text-white">
                                 {
-                                  category
-                                    .name
-                                    .en
+                                  language === 'am' && category.name.am
+                                    ? category.name.am
+                                    : category.name.en
                                 }
                               </h2>
 
@@ -954,8 +956,9 @@ export default function MenuPage() {
                                 {
                                   items.length
                                 }{' '}
-                                {items.length ===
-                                1
+                                {language === 'am'
+                                  ? 'ምግቦች'
+                                  : items.length === 1
                                   ? 'item'
                                   : 'items'}
                               </p>
@@ -1007,6 +1010,7 @@ export default function MenuPage() {
                                         item.id
                                       )
                                     }
+                                    language={language}
                                   />
                                 )
                               )}
@@ -1076,9 +1080,9 @@ export default function MenuPage() {
                           </span>
 
                           {
-                            category
-                              .name
-                              .en
+                            language === 'am' && category.name.am
+                              ? category.name.am
+                              : category.name.en
                           }
 
                         </h2>
@@ -1105,6 +1109,7 @@ export default function MenuPage() {
                                     item.id
                                   )
                                 }
+                                language={language}
                               />
                             )
                           )}
@@ -1128,7 +1133,7 @@ export default function MenuPage() {
           <div className="text-center py-12">
 
             <p className="text-lg text-restaurant-text-light dark:text-gray-400 mb-4">
-              No menu items found.
+              {language === 'am' ? 'ምንም አይነት ምግብ አልተገኘም' : 'No menu items found.'}
             </p>
 
             <button
@@ -1140,7 +1145,7 @@ export default function MenuPage() {
               }}
               className="px-6 py-2 bg-restaurant-accent text-white rounded-lg hover:bg-restaurant-accent-dark transition-colors"
             >
-              Clear Filters
+              {language === 'am' ? 'ሁሉንም አሳይ' : 'Clear Filters'}
             </button>
 
           </div>
@@ -1164,6 +1169,7 @@ export default function MenuPage() {
           onClose={() =>
             setSelectedItem(null)
           }
+          language={language}
         />
       )}
 
@@ -1178,8 +1184,8 @@ export default function MenuPage() {
           <p>
             &copy;{' '}
             {new Date().getFullYear()}{' '}
-            {restaurantData.name.en}.
-            All rights reserved.
+            {language === 'am' && restaurantData.name.am ? restaurantData.name.am : restaurantData.name.en}.{' '}
+            {language === 'am' ? 'መብቱ በህግ የተጠበቀ ነው።' : 'All rights reserved.'}
           </p>
 
         </div>
@@ -1228,6 +1234,8 @@ interface ItemDetailModalProps {
   ) => void;
 
   onClose: () => void;
+
+  language?: Language;
 }
 
 function ItemDetailModal({
@@ -1235,6 +1243,7 @@ function ItemDetailModal({
   isFavorite,
   onFavorite,
   onClose,
+  language = 'en',
 }: ItemDetailModalProps) {
   return (
     <div
@@ -1256,7 +1265,7 @@ function ItemDetailModal({
         <div className="flex items-center justify-between p-4 border-b border-cream-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900">
 
           <h2 className="text-xl font-serif font-bold text-restaurant-text dark:text-white flex-1 line-clamp-2">
-            {item.name.en}
+            {language === 'am' && item.name.am ? item.name.am : item.name.en}
           </h2>
 
           <button
@@ -1293,12 +1302,12 @@ function ItemDetailModal({
           <div>
 
             <p className="text-lg font-serif font-bold text-restaurant-text dark:text-white">
-              {item.name.en}
+              {language === 'am' && item.name.am ? item.name.am : item.name.en}
             </p>
 
-            {item.name.am && (
+            {item.name.am && item.name.en && (
               <p className="text-base text-restaurant-text-light dark:text-gray-400">
-                {item.name.am}
+                {language === 'am' ? item.name.en : item.name.am}
               </p>
             )}
 
@@ -1309,16 +1318,16 @@ function ItemDetailModal({
           <div>
 
             <h3 className="font-semibold text-restaurant-text dark:text-white mb-2">
-              Description
+              {language === 'am' ? 'መግለጫ' : 'Description'}
             </h3>
 
             <p className="text-sm text-restaurant-text-light dark:text-gray-400 leading-relaxed">
-              {item.description.en}
+              {language === 'am' && item.description.am ? item.description.am : item.description.en}
             </p>
 
-            {item.description.am && (
+            {item.description.am && item.description.en && (
               <p className="text-sm text-restaurant-text-light dark:text-gray-400 leading-relaxed mt-1">
-                {item.description.am}
+                {language === 'am' ? item.description.en : item.description.am}
               </p>
             )}
 
@@ -1332,7 +1341,7 @@ function ItemDetailModal({
               <div>
 
                 <h3 className="font-semibold text-restaurant-text dark:text-white mb-2">
-                  Ingredients
+                  {language === 'am' ? 'ግብአቶች' : 'Ingredients'}
                 </h3>
 
                 <div className="flex flex-wrap gap-2">
@@ -1363,19 +1372,19 @@ function ItemDetailModal({
 
             {item.vegetarian && (
               <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full font-medium">
-                🌱 Vegetarian
+                {language === 'am' ? '🌱 አትክልት' : '🌱 Vegetarian'}
               </span>
             )}
 
             {item.fasting && (
               <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full font-medium">
-                📿 Fasting
+                {language === 'am' ? '📿 የጾም' : '📿 Fasting'}
               </span>
             )}
 
             {item.spicy && (
               <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-3 py-1 rounded-full font-medium">
-                🌶️ Spicy
+                {language === 'am' ? '🌶️ የሚያቃጥል' : '🌶️ Spicy'}
               </span>
             )}
 
@@ -1388,7 +1397,7 @@ function ItemDetailModal({
             <div>
 
               <p className="text-sm text-restaurant-text-light dark:text-gray-400">
-                Price
+                {language === 'am' ? 'ዋጋ' : 'Price'}
               </p>
 
               <p className="text-2xl font-serif font-bold text-restaurant-accent">
@@ -1412,7 +1421,11 @@ function ItemDetailModal({
               }`}
             >
               {isFavorite
-                ? '❤️ Saved'
+                ? language === 'am'
+                  ? '❤️ ተቀምጧል'
+                  : '❤️ Saved'
+                : language === 'am'
+                ? '🤍 አስቀምጥ'
                 : '🤍 Save'}
             </button>
 

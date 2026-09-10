@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext'
 import { supabase } from '@/lib/supabase'
 import {
   Table2,
@@ -59,6 +60,7 @@ type SplitSection = {
 }
 
 export default function TablesPage() {
+  const { isAmharic } = useAdminLanguage()
   const [tables, setTables] = useState<Table[]>([])
   const [activeOrders, setActiveOrders] = useState<ActiveOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -591,10 +593,12 @@ export default function TablesPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white">
-                  Table Management
+                  {isAmharic ? 'ጠረጴዛዎች እና ክፍሎች' : 'Table Management'}
                 </h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Switch active orders, split into multiple sections, and manage capacities.
+                  {isAmharic
+                    ? 'ክፍት ትዕዛዞችን ቀይር፣ ጠረጴዛዎችን ከፋፍል እና የመቀመጫ ብዛቶችን አስተዳድር'
+                    : 'Switch active orders, split into multiple sections, and manage capacities.'}
                 </p>
               </div>
             </div>
@@ -614,7 +618,15 @@ export default function TablesPage() {
                   channelConnected ? 'bg-green-500 animate-ping' : 'bg-amber-500'
                 }`}
               />
-              <span>{channelConnected ? 'Live Channel Open' : 'Auto-Sync Active'}</span>
+              <span>
+                {channelConnected
+                  ? isAmharic
+                    ? 'የቀጥታ መስመር ክፍት ነው'
+                    : 'Live Channel Open'
+                  : isAmharic
+                  ? 'ቀጣይ ማመሳሰል ይሰራል'
+                  : 'Auto-Sync Active'}
+              </span>
             </div>
 
             {/* QUICK SWITCH BUTTON */}
@@ -629,7 +641,9 @@ export default function TablesPage() {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300 transition"
               >
                 <ArrowRightLeft size={14} />
-                Switch Table ({activeOrders.length} active)
+                {isAmharic
+                  ? `ጠረጴዛ ቀይር (${activeOrders.length} ክፍት)`
+                  : `Switch Table (${activeOrders.length} active)`}
               </button>
             )}
 
@@ -640,7 +654,15 @@ export default function TablesPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-cream-50 dark:hover:bg-slate-800 transition"
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+              <span>
+                {refreshing
+                  ? isAmharic
+                    ? 'በማደስ ላይ...'
+                    : 'Syncing...'
+                  : isAmharic
+                  ? 'አድስ'
+                  : 'Sync'}
+              </span>
             </button>
 
             {/* ADD TABLE */}
@@ -649,7 +671,7 @@ export default function TablesPage() {
               className="inline-flex items-center gap-1.5 rounded-lg bg-restaurant-accent px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-restaurant-accent-dark transition"
             >
               <Plus size={16} />
-              Add Table
+              {isAmharic ? 'አዲስ ጠረጴዛ ጨምር' : 'Add Table'}
             </button>
           </div>
         </div>
@@ -680,7 +702,7 @@ export default function TablesPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search table number or name..."
+              placeholder={isAmharic ? 'ጠረጴዛ ቁጥር ወይም ስም ፈልግ...' : 'Search table number or name...'}
               className="w-full rounded-lg border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 pl-9 pr-4 py-1.5 text-xs outline-none focus:border-restaurant-accent transition"
             />
           </div>
@@ -688,9 +710,14 @@ export default function TablesPage() {
           <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span>{activeOrders.length} Seated Orders</span>
+              <span>
+                {activeOrders.length} {isAmharic ? 'የተያዙ ትዕዛዞች' : 'Seated Orders'}
+              </span>
             </span>
-            <span>Total Tables: {tables.filter((t) => t.active).length}</span>
+            <span>
+              {isAmharic ? 'ጠቅላላ ጠረጴዛዎች:' : 'Total Tables:'}{' '}
+              {tables.filter((t) => t.active).length}
+            </span>
           </div>
         </div>
 
@@ -701,7 +728,9 @@ export default function TablesPage() {
               size={36}
               className="mx-auto mb-2 text-restaurant-accent animate-pulse"
             />
-            <p className="text-xs text-gray-500">Loading tables & orders...</p>
+            <p className="text-xs text-gray-500">
+              {isAmharic ? 'ጠረጴዛዎችና ትዕዛዞችን በመጫን ላይ...' : 'Loading tables & orders...'}
+            </p>
           </div>
         )}
 
@@ -710,10 +739,16 @@ export default function TablesPage() {
           <div className="rounded-xl border border-dashed border-cream-300 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
             <Table2 size={40} className="mx-auto mb-3 text-gray-300" />
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              No tables found
+              {isAmharic ? 'ምንም ጠረጴዛ አልተገኘም' : 'No tables found'}
             </h3>
             <p className="text-xs text-gray-500 mt-1">
-              {search ? 'No tables match your search query.' : 'Click "Add Table" to set up your floor layout.'}
+              {search
+                ? isAmharic
+                  ? 'ከፍለጋዎ ጋር የሚዛመድ ጠረጴዛ የለም።'
+                  : 'No tables match your search query.'
+                : isAmharic
+                ? 'አዲስ ጠረጴዛ ለማስገባት "አዲስ ጠረጴዛ ጨምር" የሚለውን ይጫኑ።'
+                : 'Click "Add Table" to set up your floor layout.'}
             </p>
           </div>
         )}
@@ -757,16 +792,16 @@ export default function TablesPage() {
 
                         <div>
                           <h3 className="font-bold text-restaurant-text dark:text-white">
-                            {table.name || `Table ${table.table_number}`}
+                            {table.name || (isAmharic ? `ጠረጴዛ ${table.table_number}` : `Table ${table.table_number}`)}
                           </h3>
                           <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Users size={12} />
-                              Seats {table.capacity}
+                              {isAmharic ? `መቀመጫ ${table.capacity}` : `Seats ${table.capacity}`}
                             </span>
                             {isSplit && (
                               <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                                Split ({children.length})
+                                {isAmharic ? `የተከፈለ (${children.length})` : `Split (${children.length})`}
                               </span>
                             )}
                           </div>
@@ -781,7 +816,7 @@ export default function TablesPage() {
                             onClick={() => handleMoveTable(idx, 'up')}
                             disabled={idx === 0}
                             className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-20 disabled:hover:text-gray-500 transition"
-                            title="Move table left / earlier in list"
+                            title={isAmharic ? 'ጠረጴዛውን ወደ ላይ ውሰድ' : 'Move table left / earlier in list'}
                           >
                             <ArrowUp size={12} className="-rotate-90 sm:rotate-0" />
                           </button>
@@ -789,7 +824,7 @@ export default function TablesPage() {
                             onClick={() => handleMoveTable(idx, 'down')}
                             disabled={idx === parentTables.length - 1}
                             className="p-1 rounded text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-20 disabled:hover:text-gray-500 transition"
-                            title="Move table right / later in list"
+                            title={isAmharic ? 'ጠረጴዛውን ወደ ታች ውሰድ' : 'Move table right / later in list'}
                           >
                             <ArrowDown size={12} className="-rotate-90 sm:rotate-0" />
                           </button>
@@ -798,7 +833,7 @@ export default function TablesPage() {
                         <button
                           onClick={() => handleStartEdit(table)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-                          title="Edit Table"
+                          title={isAmharic ? 'ጠረጴዛ አሻሽል' : 'Edit Table'}
                         >
                           <Edit2 size={14} />
                         </button>
@@ -809,21 +844,21 @@ export default function TablesPage() {
                               ? 'text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
                               : 'text-green-600 hover:bg-green-50'
                           }`}
-                          title={table.active ? 'Deactivate Table' : 'Reactivate Table'}
+                          title={table.active ? (isAmharic ? 'ጠረጴዛ አቦዝን' : 'Deactivate Table') : (isAmharic ? 'ጠረጴዛ አንቃ' : 'Reactivate Table')}
                         >
                           <Power size={14} />
                         </button>
                         <button
                           onClick={() => setTableToDelete(table)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                          title="Delete Table"
+                          title={isAmharic ? 'ጠረጴዛ ሰርዝ' : 'Delete Table'}
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
 
-                    {/* ACTIVE ORDER BADGE (NO OCCUPIED STATUS TAG) */}
+                    {/* ACTIVE ORDER BADGE */}
                     {activeOrder && (
                       <div className="mt-3.5 rounded-lg border border-emerald-200 bg-emerald-50/80 p-2.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
                         <div className="flex items-center justify-between">
@@ -837,14 +872,14 @@ export default function TablesPage() {
                         </div>
                         <div className="mt-1 flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-300">
                           <span>
-                            {activeOrder.items?.length || 0} item(s) · {activeOrder.status}
+                            {activeOrder.items?.length || 0} {isAmharic ? 'እቃዎች' : 'item(s)'} · {activeOrder.status}
                           </span>
                           <button
                             onClick={() => handleOpenSwitchModal(table)}
                             className="inline-flex items-center gap-1 font-bold text-emerald-800 dark:text-emerald-200 underline hover:text-emerald-950"
                           >
                             <ArrowRightLeft size={11} />
-                            Switch Table
+                            {isAmharic ? 'ጠረጴዛ ቀይር' : 'Switch Table'}
                           </button>
                         </div>
                       </div>
@@ -854,12 +889,12 @@ export default function TablesPage() {
                     {isSplit && (
                       <div className="mt-3.5 space-y-2 border-t border-cream-200 dark:border-slate-800 pt-3">
                         <div className="flex items-center justify-between text-xs text-gray-500 font-medium">
-                          <span>Split Sections:</span>
+                          <span>{isAmharic ? 'ንዑስ ክፍሎች:' : 'Split Sections:'}</span>
                           <button
                             onClick={() => handleMergeSections(table)}
                             className="text-[11px] font-bold text-blue-600 hover:underline"
                           >
-                            Merge All
+                            {isAmharic ? 'ሁሉንም አዋህድ' : 'Merge All'}
                           </button>
                         </div>
 
@@ -880,7 +915,7 @@ export default function TablesPage() {
                                     {child.table_number}
                                   </span>
                                   <span className="text-[10px] text-gray-500">
-                                    {child.capacity}p
+                                    {child.capacity}{isAmharic ? ' ሰው' : 'p'}
                                   </span>
                                 </div>
                                 {childOrder ? (
@@ -889,14 +924,14 @@ export default function TablesPage() {
                                     <button
                                       onClick={() => handleOpenSwitchModal(child)}
                                       className="text-emerald-800 underline"
-                                      title="Switch Table"
+                                      title={isAmharic ? 'ጠረጴዛ ቀይር' : 'Switch Table'}
                                     >
-                                      Switch
+                                      {isAmharic ? 'ቀይር' : 'Switch'}
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="mt-1 text-[10px] text-gray-400">
-                                    Available
+                                    {isAmharic ? 'ክፍት' : 'Available'}
                                   </div>
                                 )}
                               </div>
@@ -915,7 +950,7 @@ export default function TablesPage() {
                       className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-cream-200 bg-cream-50 px-2.5 py-1.5 text-xs font-semibold text-restaurant-text hover:bg-cream-100 dark:border-slate-800 dark:bg-slate-800 dark:text-gray-200 transition"
                     >
                       <ArrowRightLeft size={13} />
-                      Switch Table
+                      {isAmharic ? 'ጠረጴዛ ቀይር' : 'Switch Table'}
                     </button>
 
                     {/* SPLIT / MERGE BUTTON */}
@@ -925,7 +960,7 @@ export default function TablesPage() {
                         className="inline-flex items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 transition"
                       >
                         <Split size={13} />
-                        Split
+                        {isAmharic ? 'ክፈል' : 'Split'}
                       </button>
                     ) : (
                       <button
@@ -933,7 +968,7 @@ export default function TablesPage() {
                         className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-800 dark:bg-slate-800 dark:text-gray-300 transition"
                       >
                         <Layers size={13} />
-                        Merge
+                        {isAmharic ? 'አዋህድ' : 'Merge'}
                       </button>
                     )}
                   </div>
@@ -953,7 +988,7 @@ export default function TablesPage() {
                 <div className="flex items-center gap-2">
                   <ArrowRightLeft className="text-restaurant-accent" size={20} />
                   <h3 className="text-lg font-bold text-restaurant-text dark:text-white">
-                    Switch Table
+                    {isAmharic ? 'ጠረጴዛ ቀይር' : 'Switch Table'}
                   </h3>
                 </div>
                 <button
@@ -967,9 +1002,11 @@ export default function TablesPage() {
               <div className="mt-4 space-y-4">
                 {/* SOURCE TABLE */}
                 <div className="rounded-xl bg-cream-50 dark:bg-slate-800/60 p-3.5 border border-cream-200 dark:border-slate-800">
-                  <div className="text-xs text-gray-500">From Source Table:</div>
+                  <div className="text-xs text-gray-500">
+                    {isAmharic ? 'ከመነሻ ጠረጴዛ:' : 'From Source Table:'}
+                  </div>
                   <div className="text-base font-bold text-restaurant-text dark:text-white mt-0.5">
-                    Table {showSwitchModal.sourceTable.table_number}
+                    {isAmharic ? 'ጠረጴዛ' : 'Table'} {showSwitchModal.sourceTable.table_number}
                     {showSwitchModal.sourceTable.name && (
                       <span className="text-xs text-gray-500 font-normal ml-2">
                         ({showSwitchModal.sourceTable.name})
@@ -980,13 +1017,14 @@ export default function TablesPage() {
                     <div className="mt-2 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 font-semibold">
                       <Receipt size={14} />
                       <span>
-                        Moving {showSwitchModal.order.order_number} (
-                        {showSwitchModal.order.items?.length || 0} items)
+                        {isAmharic
+                          ? `ትዕዛዝ ${showSwitchModal.order.order_number} (${showSwitchModal.order.items?.length || 0} እቃዎች) በማዘዋወር ላይ`
+                          : `Moving ${showSwitchModal.order.order_number} (${showSwitchModal.order.items?.length || 0} items)`}
                       </span>
                     </div>
                   ) : (
                     <div className="mt-1 text-xs text-gray-500">
-                      Transferring guest seatings to destination
+                      {isAmharic ? 'የደንበኛ መቀመጫን ወደ መድረሻው በማዘዋወር ላይ' : 'Transferring guest seatings to destination'}
                     </div>
                   )}
                 </div>
@@ -994,14 +1032,16 @@ export default function TablesPage() {
                 {/* DESTINATION TABLE SELECTION */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Select Destination Table:
+                    {isAmharic ? 'መድረሻ ጠረጴዛ ይምረጡ:' : 'Select Destination Table:'}
                   </label>
                   <select
                     value={switchTargetTableId}
                     onChange={(e) => setSwitchTargetTableId(e.target.value)}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-sm font-semibold outline-none focus:border-restaurant-accent transition"
                   >
-                    <option value="">-- Choose destination table --</option>
+                    <option value="">
+                      {isAmharic ? '-- መድረሻ ጠረጴዛ ይምረጡ --' : '-- Choose destination table --'}
+                    </option>
                     {tables
                       .filter(
                         (t) =>
@@ -1011,9 +1051,15 @@ export default function TablesPage() {
                         const hasOrder = getActiveOrderForTable(t.id)
                         return (
                           <option key={t.id} value={t.id}>
-                            Table {t.table_number}{' '}
-                            {t.name ? `(${t.name})` : ''} - Seats {t.capacity}
-                            {hasOrder ? ` [Seated: ${hasOrder.order_number}]` : ' [Available]'}
+                            {isAmharic ? 'ጠረጴዛ' : 'Table'} {t.table_number}{' '}
+                            {t.name ? `(${t.name})` : ''} - {isAmharic ? `መቀመጫ ${t.capacity}` : `Seats ${t.capacity}`}
+                            {hasOrder
+                              ? isAmharic
+                                ? ` [የተያዘ: ${hasOrder.order_number}]`
+                                : ` [Seated: ${hasOrder.order_number}]`
+                              : isAmharic
+                              ? ' [ክፍት]'
+                              : ' [Available]'}
                           </option>
                         )
                       })}
@@ -1028,7 +1074,7 @@ export default function TablesPage() {
                     onClick={() => setShowSwitchModal(null)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ይቅር' : 'Cancel'}
                   </button>
                   <button
                     type="button"
@@ -1036,7 +1082,13 @@ export default function TablesPage() {
                     disabled={saving || !switchTargetTableId}
                     className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
-                    {saving ? 'Switching...' : 'Switch Table'}
+                    {saving
+                      ? isAmharic
+                        ? 'በመቀየር ላይ...'
+                        : 'Switching...'
+                      : isAmharic
+                      ? 'ጠረጴዛ ቀይር'
+                      : 'Switch Table'}
                   </button>
                 </div>
               </div>
@@ -1054,7 +1106,9 @@ export default function TablesPage() {
                 <div className="flex items-center gap-2">
                   <Split className="text-restaurant-accent" size={20} />
                   <h3 className="text-lg font-bold text-restaurant-text dark:text-white">
-                    Split Table {showSplitModal.table_number}
+                    {isAmharic
+                      ? `ጠረጴዛ ${showSplitModal.table_number}ን ክፈል`
+                      : `Split Table ${showSplitModal.table_number}`}
                   </h3>
                 </div>
                 <button
@@ -1069,7 +1123,7 @@ export default function TablesPage() {
                 {/* PRESETS */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Split into How Many Sections?
+                    {isAmharic ? 'ወደ ስንት ክፍሎች ይከፈል?' : 'Split into How Many Sections?'}
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[2, 3, 4, 5].map((count) => (
@@ -1083,7 +1137,7 @@ export default function TablesPage() {
                             : 'border-cream-200 bg-cream-50 text-gray-700 hover:bg-cream-100 dark:border-slate-800 dark:bg-slate-800 dark:text-gray-300'
                         }`}
                       >
-                        {count} Sections
+                        {count} {isAmharic ? 'ክፍሎች' : 'Sections'}
                       </button>
                     ))}
                   </div>
@@ -1092,7 +1146,7 @@ export default function TablesPage() {
                 {/* SECTIONS LIST */}
                 <div className="space-y-2.5">
                   <div className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                    Customize Sections & Capacities:
+                    {isAmharic ? 'የክፍሎቹን ስም እና የመቀመጫ ብዛት ያስተካክሉ:' : 'Customize Sections & Capacities:'}
                   </div>
 
                   {splitSections.map((sec, idx) => (
@@ -1102,7 +1156,7 @@ export default function TablesPage() {
                     >
                       <div className="flex-1">
                         <label className="block text-[10px] font-medium text-gray-400 mb-0.5">
-                          Suffix / Label:
+                          {isAmharic ? 'መለያ ምልክት:' : 'Suffix / Label:'}
                         </label>
                         <div className="flex items-center gap-1">
                           <span className="text-xs font-bold text-gray-500">
@@ -1115,7 +1169,7 @@ export default function TablesPage() {
                               const val = e.target.value.toUpperCase()
                               setSplitSections((prev) =>
                                 prev.map((s, i) =>
-                                  i === idx ? { ...s, suffix: val } : s
+                                 i === idx ? { ...s, suffix: val } : s
                                 )
                               )
                             }}
@@ -1127,7 +1181,7 @@ export default function TablesPage() {
 
                       <div className="flex-1">
                         <label className="block text-[10px] font-medium text-gray-400 mb-0.5">
-                          Capacity (Seats):
+                          {isAmharic ? 'መቀመጫ ብዛት:' : 'Capacity (Seats):'}
                         </label>
                         <input
                           type="number"
@@ -1163,7 +1217,7 @@ export default function TablesPage() {
                   onClick={handleAddSplitRow}
                   className="w-full py-2 text-xs font-bold text-restaurant-accent border border-dashed border-restaurant-accent/40 rounded-xl hover:bg-restaurant-accent/5 transition"
                 >
-                  + Add Another Section
+                  {isAmharic ? '+ ተጨማሪ ክፍል ጨምር' : '+ Add Another Section'}
                 </button>
 
                 {error && <div className="text-xs text-red-600">{error}</div>}
@@ -1174,14 +1228,20 @@ export default function TablesPage() {
                     onClick={() => setShowSplitModal(null)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ይቅር' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
                     className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
-                    {saving ? 'Splitting Table...' : `Split into ${splitSections.length} Sections`}
+                    {saving
+                      ? isAmharic
+                        ? 'በመከፋፈል ላይ...'
+                        : 'Splitting Table...'
+                      : isAmharic
+                      ? `ወደ ${splitSections.length} ክፍሎች ክፈል`
+                      : `Split into ${splitSections.length} Sections`}
                   </button>
                 </div>
               </form>
@@ -1199,7 +1259,7 @@ export default function TablesPage() {
                 <div className="flex items-center gap-2">
                   <Plus className="text-restaurant-accent" size={20} />
                   <h3 className="text-lg font-bold text-restaurant-text dark:text-white">
-                    Add New Table
+                    {isAmharic ? 'አዲስ ጠረጴዛ ጨምር' : 'Add New Table'}
                   </h3>
                 </div>
                 <button
@@ -1213,34 +1273,34 @@ export default function TablesPage() {
               <form onSubmit={handleCreateTable} className="mt-4 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Table Number *
+                    {isAmharic ? 'የጠረጴዛ ቁጥር *' : 'Table Number *'}
                   </label>
                   <input
                     type="text"
                     required
                     value={newTableNumber}
                     onChange={(e) => setNewTableNumber(e.target.value)}
-                    placeholder="e.g. 5 or Bar-1"
+                    placeholder={isAmharic ? 'ምሳሌ፡ 5 ወይም ባር-1' : 'e.g. 5 or Bar-1'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs outline-none focus:border-restaurant-accent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Table Name / Description (Optional)
+                    {isAmharic ? 'የጠረጴዛ ስም / ገለጻ (አማራጭ)' : 'Table Name / Description (Optional)'}
                   </label>
                   <input
                     type="text"
                     value={newTableName}
                     onChange={(e) => setNewTableName(e.target.value)}
-                    placeholder="e.g. Window Booth, Patio 3"
+                    placeholder={isAmharic ? 'ምሳሌ፡ መስኮት አጠገብ' : 'e.g. Window Booth, Patio 3'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs outline-none focus:border-restaurant-accent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Capacity (Seats)
+                    {isAmharic ? 'የመቀመጫ ብዛት' : 'Capacity (Seats)'}
                   </label>
                   <input
                     type="number"
@@ -1260,14 +1320,20 @@ export default function TablesPage() {
                     onClick={() => setShowAddModal(false)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ይቅር' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
                     className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
-                    {saving ? 'Creating...' : 'Create Table'}
+                    {saving
+                      ? isAmharic
+                        ? 'በመፍጠር ላይ...'
+                        : 'Creating...'
+                      : isAmharic
+                      ? 'ጠረጴዛ ፍጠር'
+                      : 'Create Table'}
                   </button>
                 </div>
               </form>
@@ -1285,7 +1351,9 @@ export default function TablesPage() {
                 <div className="flex items-center gap-2">
                   <Edit2 className="text-restaurant-accent" size={20} />
                   <h3 className="text-lg font-bold text-restaurant-text dark:text-white">
-                    Edit Table {editingTable.table_number}
+                    {isAmharic
+                      ? `ጠረጴዛ ${editingTable.table_number}ን አሻሽል`
+                      : `Edit Table ${editingTable.table_number}`}
                   </h3>
                 </div>
                 <button
@@ -1299,7 +1367,7 @@ export default function TablesPage() {
               <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Table Number
+                    {isAmharic ? 'የጠረጴዛ ቁጥር' : 'Table Number'}
                   </label>
                   <input
                     type="text"
@@ -1312,20 +1380,20 @@ export default function TablesPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Table Name
+                    {isAmharic ? 'የጠረጴዛ ስም' : 'Table Name'}
                   </label>
                   <input
                     type="text"
                     value={editTableName}
                     onChange={(e) => setEditTableName(e.target.value)}
-                    placeholder="e.g. Window Booth"
+                    placeholder={isAmharic ? 'ምሳሌ፡ መስኮት አጠገብ' : 'e.g. Window Booth'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs outline-none focus:border-restaurant-accent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Capacity (Seats)
+                    {isAmharic ? 'የመቀመጫ ብዛት' : 'Capacity (Seats)'}
                   </label>
                   <input
                     type="number"
@@ -1345,14 +1413,20 @@ export default function TablesPage() {
                     onClick={() => setEditingTable(null)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ይቅር' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
                     className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
-                    {saving ? 'Saving...' : 'Save Changes'}
+                    {saving
+                      ? isAmharic
+                        ? 'በማስቀመጥ ላይ...'
+                        : 'Saving...'
+                      : isAmharic
+                      ? 'ለውጦችን መዝግብ'
+                      : 'Save Changes'}
                   </button>
                 </div>
               </form>
@@ -1370,16 +1444,20 @@ export default function TablesPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-restaurant-text dark:text-white">
-                    Delete Table {tableToDelete.table_number}?
+                    {isAmharic
+                      ? `ጠረጴዛ ${tableToDelete.table_number} ይሰረዝ?`
+                      : `Delete Table ${tableToDelete.table_number}?`}
                   </h3>
                   <p className="text-xs text-gray-500">
-                    {tableToDelete.name || `Table ${tableToDelete.table_number}`}
+                    {tableToDelete.name || (isAmharic ? `ጠረጴዛ ${tableToDelete.table_number}` : `Table ${tableToDelete.table_number}`)}
                   </p>
                 </div>
               </div>
 
               <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-                Are you sure you want to permanently delete this table? Any split sections associated with this table will also be removed.
+                {isAmharic
+                  ? 'ይህን ጠረጴዛ በእርግጥ መሰረዝ ይፈልጋሉ? ከዚህ ጠረጴዛ ጋር የተያያዙ ንዑስ ክፍሎች በሙሉ አብረው ይሰረዛሉ።'
+                  : 'Are you sure you want to permanently delete this table? Any split sections associated with this table will also be removed.'}
               </p>
 
               {error && (
@@ -1398,7 +1476,7 @@ export default function TablesPage() {
                   disabled={deleting}
                   className="flex-1 rounded-xl border border-gray-200 dark:border-slate-800 px-4 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
                 >
-                  Cancel
+                  {isAmharic ? 'ይቅር' : 'Cancel'}
                 </button>
                 <button
                   type="button"
@@ -1406,7 +1484,13 @@ export default function TablesPage() {
                   disabled={deleting}
                   className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50 transition"
                 >
-                  {deleting ? 'Deleting...' : 'Delete Table'}
+                  {deleting
+                    ? isAmharic
+                      ? 'በመሰረዝ ላይ...'
+                      : 'Deleting...'
+                    : isAmharic
+                    ? 'ጠረጴዛ ሰርዝ'
+                    : 'Delete Table'}
                 </button>
               </div>
             </div>

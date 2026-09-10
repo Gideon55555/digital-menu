@@ -5,12 +5,14 @@ import { AdminLanguage, adminTranslations, AdminTranslations } from './admin-tra
 
 interface AdminLanguageContextType {
   language: AdminLanguage;
+  isAmharic: boolean;
   setLanguage: (lang: AdminLanguage) => void;
   t: AdminTranslations;
 }
 
 const AdminLanguageContext = createContext<AdminLanguageContextType>({
   language: 'en',
+  isAmharic: false,
   setLanguage: () => {},
   t: adminTranslations.en,
 });
@@ -49,9 +51,10 @@ export function AdminLanguageProvider({ children }: { children: React.ReactNode 
   };
 
   const t = adminTranslations[language] || adminTranslations.en;
+  const isAmharic = language === 'am';
 
   return (
-    <AdminLanguageContext.Provider value={{ language, setLanguage, t }}>
+    <AdminLanguageContext.Provider value={{ language, isAmharic, setLanguage, t }}>
       {children}
     </AdminLanguageContext.Provider>
   );

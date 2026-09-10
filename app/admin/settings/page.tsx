@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { RestaurantSettings } from '@/lib/types';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 import { Save } from 'lucide-react';
 import restaurant from '@/data/restaurant.json';
 
@@ -12,6 +13,7 @@ const restaurantData = restaurant as unknown as RestaurantSettings;
 type SettingsObject = Record<string, unknown>;
 
 export default function SettingsPage() {
+  const { isAmharic } = useAdminLanguage();
   const [mounted, setMounted] = useState(false);
   const [settings, setSettings] =
     useState<RestaurantSettings>(restaurantData);
@@ -24,7 +26,9 @@ export default function SettingsPage() {
   if (!mounted) {
     return (
       <AdminLayout>
-        <div>Loading...</div>
+        <div className="p-8 text-center text-xs text-gray-500">
+          {isAmharic ? 'በመጫን ላይ...' : 'Loading...'}
+        </div>
       </AdminLayout>
     );
   }
@@ -93,11 +97,11 @@ export default function SettingsPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
-            Restaurant Settings
+            {isAmharic ? 'የሬስቶራንት ቅንብሮች' : 'Restaurant Settings'}
           </h1>
 
           <p className="text-restaurant-text-light dark:text-gray-400 mt-1">
-            Manage your restaurant information
+            {isAmharic ? 'የሬስቶራንትዎን መረጃዎችና አድራሻዎች ያስተዳድሩ' : 'Manage your restaurant information'}
           </p>
         </div>
 
@@ -105,7 +109,7 @@ export default function SettingsPage() {
         {saved && (
           <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <p className="text-green-700 dark:text-green-400">
-              Settings saved successfully!
+              {isAmharic ? 'ቅንብሮች በተሳካ ሁኔታ ተቀምጠዋል!' : 'Settings saved successfully!'}
             </p>
           </div>
         )}
@@ -114,13 +118,13 @@ export default function SettingsPage() {
         <div className="restaurant-card p-6 space-y-4">
 
           <h2 className="text-lg font-semibold text-restaurant-text dark:text-white">
-            Basic Information
+            {isAmharic ? 'መሰረታዊ መረጃዎች' : 'Basic Information'}
           </h2>
 
           {/* Restaurant Name EN */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Restaurant Name (EN)
+              {isAmharic ? 'የሬስቶራንት ስም (እንግሊዝኛ)' : 'Restaurant Name (EN)'}
             </label>
 
             <input
@@ -139,7 +143,7 @@ export default function SettingsPage() {
           {/* Restaurant Name AM */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Restaurant Name (AM)
+              {isAmharic ? 'የሬስቶራንት ስም (አማርኛ)' : 'Restaurant Name (AM)'}
             </label>
 
             <input
@@ -158,7 +162,7 @@ export default function SettingsPage() {
           {/* Tagline */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Tagline (EN)
+              {isAmharic ? 'መሪ ቃል / መግለጫ (እንግሊዝኛ)' : 'Tagline (EN)'}
             </label>
 
             <input
@@ -177,7 +181,7 @@ export default function SettingsPage() {
           {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Phone
+              {isAmharic ? 'ስልክ ቁጥር' : 'Phone'}
             </label>
 
             <input
@@ -196,7 +200,7 @@ export default function SettingsPage() {
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Email
+              {isAmharic ? 'ኢሜይል' : 'Email'}
             </label>
 
             <input
@@ -215,7 +219,7 @@ export default function SettingsPage() {
           {/* Currency */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Currency
+              {isAmharic ? 'የገንዘብ መለያ (Currency)' : 'Currency'}
             </label>
 
             <input
@@ -238,13 +242,13 @@ export default function SettingsPage() {
         <div className="restaurant-card p-6 space-y-4">
 
           <h2 className="text-lg font-semibold text-restaurant-text dark:text-white">
-            Location
+            {isAmharic ? 'አድራሻ እና ካርታ' : 'Location'}
           </h2>
 
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Address (EN)
+              {isAmharic ? 'አድራሻ (እንግሊዝኛ)' : 'Address (EN)'}
             </label>
 
             <input
@@ -263,7 +267,7 @@ export default function SettingsPage() {
           {/* Google Maps */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Google Maps URL
+              {isAmharic ? 'የጉግል ካርታ ሊንክ (Google Maps URL)' : 'Google Maps URL'}
             </label>
 
             <input
@@ -286,13 +290,13 @@ export default function SettingsPage() {
         <div className="restaurant-card p-6 space-y-4">
 
           <h2 className="text-lg font-semibold text-restaurant-text dark:text-white">
-            Social Media
+            {isAmharic ? 'ማህበራዊ ሚዲያ' : 'Social Media'}
           </h2>
 
           {/* Instagram */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Instagram
+              {isAmharic ? 'ኢንስታግራም' : 'Instagram'}
             </label>
 
             <input
@@ -311,7 +315,7 @@ export default function SettingsPage() {
           {/* Facebook */}
           <div>
             <label className="block text-sm font-medium text-restaurant-text dark:text-white mb-1">
-              Facebook
+              {isAmharic ? 'ፌስቡክ' : 'Facebook'}
             </label>
 
             <input
@@ -335,7 +339,7 @@ export default function SettingsPage() {
           className="flex items-center gap-2 px-6 py-3 bg-restaurant-accent text-white rounded-lg hover:bg-restaurant-accent-dark transition-colors font-medium w-full sm:w-auto"
         >
           <Save size={20} />
-          Save Settings
+          {isAmharic ? 'ቅንብሮቹን አስቀምጥ' : 'Save Settings'}
         </button>
 
       </div>

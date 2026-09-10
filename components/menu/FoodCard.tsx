@@ -1,6 +1,6 @@
 'use client';
 
-import { MenuItem } from '@/lib/types';
+import { MenuItem, Language } from '@/lib/types';
 import { formatPrice } from '@/lib/utils/common';
 import { Heart, Info } from 'lucide-react';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ interface FoodCardProps {
   onFavorite?: (id: string, isFavorite: boolean) => void;
   isFavorite?: boolean;
   onClick?: () => void;
+  language?: Language;
 }
 
 export function FoodCard({
@@ -18,6 +19,7 @@ export function FoodCard({
   onFavorite,
   isFavorite = false,
   onClick,
+  language = 'en',
 }: FoodCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -49,17 +51,17 @@ export function FoodCard({
         <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end">
           {!item.available && (
             <div className="bg-red-500/90 text-white px-2 py-1 rounded text-xs font-semibold">
-              SOLD OUT
+              {language === 'am' ? 'አልቋል' : 'SOLD OUT'}
             </div>
           )}
           {item.featured && (
             <div className="bg-restaurant-accent/90 text-white px-2 py-1 rounded text-xs font-semibold">
-              FEATURED
+              {language === 'am' ? 'ተመራጭ' : 'FEATURED'}
             </div>
           )}
           {item.fasting && (
             <div className="bg-green-500/90 text-white px-2 py-1 rounded text-xs font-semibold">
-              FASTING
+              {language === 'am' ? 'የጾም' : 'FASTING'}
             </div>
           )}
         </div>
@@ -77,11 +79,11 @@ export function FoodCard({
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1">
             <h3 className="font-serif font-bold text-restaurant-text dark:text-white line-clamp-2">
-              {item.name.en}
+              {language === 'am' && item.name.am ? item.name.am : item.name.en}
             </h3>
-            {item.name.am && (
+            {item.name.am && item.name.en && (
               <p className="text-sm text-restaurant-text-light dark:text-gray-400">
-                {item.name.am}
+                {language === 'am' ? item.name.en : item.name.am}
               </p>
             )}
           </div>
@@ -101,19 +103,19 @@ export function FoodCard({
 
         {/* Description */}
         <p className="text-sm text-restaurant-text-light dark:text-gray-400 line-clamp-2 mb-3">
-          {item.description.en}
+          {language === 'am' && item.description.am ? item.description.am : item.description.en}
         </p>
 
         {/* Indicators */}
         <div className="flex flex-wrap gap-1 mb-3">
           {item.vegetarian && (
             <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded">
-              🌱 Vegetarian
+              {language === 'am' ? '🌱 አትክልት' : '🌱 Vegetarian'}
             </span>
           )}
           {item.spicy && (
             <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-0.5 rounded">
-              🌶️ Spicy
+              {language === 'am' ? '🌶️ የሚያቃጥል' : '🌶️ Spicy'}
             </span>
           )}
         </div>
@@ -128,7 +130,13 @@ export function FoodCard({
               ? 'text-green-600 dark:text-green-400'
               : 'text-red-600 dark:text-red-400'
           }`}>
-            {item.available ? 'Available' : 'Sold Out'}
+            {item.available
+              ? language === 'am'
+                ? 'ይገኛል'
+                : 'Available'
+              : language === 'am'
+              ? 'አልቋል'
+              : 'Sold Out'}
           </span>
         </div>
       </div>

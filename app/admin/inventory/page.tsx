@@ -6,6 +6,7 @@ import { AdminRole, getAdminAuth, normalizeAdminRole } from '@/lib/admin-auth'
 import { InventoryItem, InventoryNotification } from '@/lib/types'
 import { supabase } from '@/lib/supabase'
 import { playNotificationSound } from '@/lib/audio'
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext'
 import {
   Package,
   AlertTriangle,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react'
 
 export default function InventoryPage() {
+  const { isAmharic } = useAdminLanguage()
   const [role, setRole] = useState<AdminRole>('admin')
   const [items, setItems] = useState<InventoryItem[]>([])
   const [notifications, setNotifications] = useState<InventoryNotification[]>([])
@@ -337,18 +339,18 @@ export default function InventoryPage() {
               <Package className="text-restaurant-accent" size={26} />
               <h1 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white">
                 {role === 'kitchen'
-                  ? 'Food Kitchen Inventory'
+                  ? (isAmharic ? 'የማብሰያ ቤት እቃዎች ክምችት' : 'Food Kitchen Inventory')
                   : role === 'drinks_kitchen'
-                    ? 'Drinks & Bar Inventory'
-                    : 'Inventory Management'}
+                    ? (isAmharic ? 'የመጠጥና ባር እቃዎች ክምችት' : 'Drinks & Bar Inventory')
+                    : (isAmharic ? 'የእቃዎች ክምችት መቆጣጠሪያ' : 'Inventory Management')}
               </h1>
             </div>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {role === 'kitchen'
-                ? 'Update food ingredients and alert administration when supplies run low.'
+                ? (isAmharic ? 'የምግብ ግብዓቶችን ይቆጣጠሩ እና እቃ ሲያልቅ ለአስተዳዳሪው ጥቆማ ይላኩ።' : 'Update food ingredients and alert administration when supplies run low.')
                 : role === 'drinks_kitchen'
-                  ? 'Manage beverage supplies, beans, and milk, and report low stock to admin.'
-                  : 'Track real-time stock levels, configure thresholds, and receive kitchen alerts.'}
+                  ? (isAmharic ? 'የመጠጥ፣ ቡና እና ወተት ክምችቶችን ይቆጣጠሩ እና እቃ ሲያልቅ ለአስተዳዳሪው ያሳውቁ።' : 'Manage beverage supplies, beans, and milk, and report low stock to admin.')
+                  : (isAmharic ? 'የእቃ ክምችቶችን ይቆጣጠሩ፣ ዝቅተኛ ገደብ ይወስኑ እና ከኩሽና የሚላኩ ጥቆማዎችን ይመልከቱ።' : 'Track real-time stock levels, configure thresholds, and receive kitchen alerts.')}
             </p>
           </div>
 
@@ -360,10 +362,10 @@ export default function InventoryPage() {
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
                   : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
               }`}
-              title={channelConnected ? 'Realtime Channel Connected' : 'Auto-Sync Active'}
+              title={channelConnected ? (isAmharic ? 'የቀጥታ መስመር ክፍት ነው' : 'Realtime Channel Connected') : (isAmharic ? 'ራስ-ማመሳሰል ነቅቷል' : 'Auto-Sync Active')}
             >
               <span className={`h-2 w-2 rounded-full ${channelConnected ? 'bg-green-500 animate-ping' : 'bg-amber-500'}`} />
-              <span>{channelConnected ? 'Live Channel Open' : 'Auto-Sync Active'}</span>
+              <span>{channelConnected ? (isAmharic ? 'የቀጥታ መስመር ክፍት' : 'Live Channel Open') : (isAmharic ? 'ራስ-ማመሳሰል ነቅቷል' : 'Auto-Sync Active')}</span>
             </div>
 
             {/* AUDIO NOTIFICATION TOGGLE */}
@@ -374,10 +376,10 @@ export default function InventoryPage() {
                   ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300'
                   : 'border-gray-200 bg-white text-gray-400 dark:border-slate-800 dark:bg-slate-800'
               }`}
-              title={soundEnabled ? 'Low stock alarm is ON' : 'Low stock alarm is MUTED'}
+              title={soundEnabled ? (isAmharic ? 'የጥሪ ድምፅ በርቷል' : 'Low stock alarm is ON') : (isAmharic ? 'ድምፅ ጠፍቷል' : 'Low stock alarm is MUTED')}
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-              <span>{soundEnabled ? 'Alarm ON' : 'Muted'}</span>
+              <span>{soundEnabled ? (isAmharic ? 'ማንቂያ በርቷል' : 'Alarm ON') : (isAmharic ? 'ድምፅ ጠፍቷል' : 'Muted')}</span>
             </button>
 
             {/* REFRESH / SYNC */}
@@ -390,7 +392,7 @@ export default function InventoryPage() {
               className="inline-flex items-center gap-2 rounded-lg border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-cream-50 dark:hover:bg-slate-800 transition"
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+              <span>{refreshing ? (isAmharic ? 'በማመሳሰል ላይ...' : 'Syncing...') : (isAmharic ? 'አድስ' : 'Sync')}</span>
             </button>
 
             {role === 'admin' && (
@@ -399,7 +401,7 @@ export default function InventoryPage() {
                 className="inline-flex items-center gap-2 rounded-lg bg-restaurant-accent px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-restaurant-accent-dark transition"
               >
                 <Plus size={16} />
-                Add Item
+                {isAmharic ? 'አዲስ እቃ ጨምር' : 'Add Item'}
               </button>
             )}
           </div>
@@ -416,13 +418,13 @@ export default function InventoryPage() {
                 <div>
                   <h3 className="text-sm font-bold text-red-900 dark:text-red-200">
                     {unreadAlertsCount > 0
-                      ? `🚨 Kitchen Alert: ${unreadAlertsCount} Low-Stock Notification(s) Waiting For Review!`
-                      : `⚠️ Attention: ${lowStockCount} Inventory Item(s) Running Below Minimum Threshold!`}
+                      ? (isAmharic ? `🚨 የኩሽና ጥቆማ: ${unreadAlertsCount} እቃ አልቋል የሚሉ ጥቆማዎች አሉ!` : `🚨 Kitchen Alert: ${unreadAlertsCount} Low-Stock Notification(s) Waiting For Review!`)
+                      : (isAmharic ? `⚠️ ትኩረት: ${lowStockCount} እቃዎች ከዝቅተኛ ገደብ በታች ናቸው!` : `⚠️ Attention: ${lowStockCount} Inventory Item(s) Running Below Minimum Threshold!`)}
                   </h3>
                   <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">
                     {role === 'admin'
-                      ? 'Supplies are running low. Please check the reported kitchen alerts and restock as needed.'
-                      : 'Some supplies are running low in the kitchen. Management has been notified.'}
+                      ? (isAmharic ? 'የአንዳንድ እቃዎች ክምችት እያለቀ ነው። እባክዎ የኩሽና ጥቆማዎችን አይተው እቃ ይግዙ።' : 'Supplies are running low. Please check the reported kitchen alerts and restock as needed.')
+                      : (isAmharic ? 'በኩሽና ውስጥ የአንዳንድ እቃዎች ክምችት አናሳ ነው። ለአስተዳዳሪው ተልኳል።' : 'Some supplies are running low in the kitchen. Management has been notified.')}
                   </p>
                 </div>
               </div>
@@ -432,7 +434,7 @@ export default function InventoryPage() {
                   className="inline-flex items-center gap-1.5 self-start sm:self-auto px-3.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 shadow transition"
                 >
                   <Bell size={14} />
-                  Review Kitchen Alerts ({unreadAlertsCount})
+                  {isAmharic ? `የኩሽና ጥቆማዎችን እይ (${unreadAlertsCount})` : `Review Kitchen Alerts (${unreadAlertsCount})`}
                 </button>
               )}
             </div>
@@ -446,11 +448,12 @@ export default function InventoryPage() {
               <AlertTriangle className="text-amber-600 dark:text-amber-400 mt-0.5" size={22} />
               <div>
                 <h3 className="font-bold text-amber-900 dark:text-amber-200">
-                  Supabase Setup Notice
+                  {isAmharic ? 'የዳታቤዝ ማስታወቂያ' : 'Supabase Setup Notice'}
                 </h3>
                 <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
-                  The <code className="font-mono font-semibold">inventory_items</code> and <code className="font-mono font-semibold">inventory_notifications</code> tables have not been created yet in your Supabase database.
-                  Please run the SQL script provided in your Supabase SQL Editor to enable persistent inventory storage.
+                  {isAmharic
+                    ? 'የ inventory_items እና inventory_notifications ሠንጠረዦች በዳታቤዝዎ ውስጥ ገና አልተፈጠሩም። እባክዎ በ Supabase SQL Editor ውስጥ ኮዱን ያስገቡ።'
+                    : 'The inventory_items and inventory_notifications tables have not been created yet in your Supabase database.'}
                 </p>
               </div>
             </div>
@@ -469,7 +472,7 @@ export default function InventoryPage() {
               }`}
             >
               <Package size={16} />
-              All Inventory ({items.length})
+              {isAmharic ? `ሁሉም እቃዎች (${items.length})` : `All Inventory (${items.length})`}
             </button>
 
             <button
@@ -481,7 +484,7 @@ export default function InventoryPage() {
               }`}
             >
               <Bell size={16} />
-              Kitchen Alerts
+              {isAmharic ? 'የኩሽና ጥቆማዎች' : 'Kitchen Alerts'}
               {unreadAlertsCount > 0 && (
                 <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-xs font-bold text-white">
                   {unreadAlertsCount}
@@ -496,18 +499,18 @@ export default function InventoryPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-restaurant-text dark:text-white">
-                Kitchen Low Stock Alerts
+                {isAmharic ? 'የኩሽና እቃ ማንቂያዎች' : 'Kitchen Low Stock Alerts'}
               </h2>
               <span className="text-xs text-gray-500">
-                {unreadAlertsCount} unread alert(s)
+                {isAmharic ? `${unreadAlertsCount} ያልታዩ ጥቆማዎች` : `${unreadAlertsCount} unread alert(s)`}
               </span>
             </div>
 
             {notifications.length === 0 ? (
               <div className="restaurant-card p-12 text-center text-gray-500 dark:text-gray-400">
                 <CheckCircle2 size={36} className="mx-auto text-green-500 mb-2" />
-                <p className="font-semibold">No alerts right now</p>
-                <p className="text-xs mt-1">Kitchen staff haven&apos;t reported any low items.</p>
+                <p className="font-semibold">{isAmharic ? 'ምንም ጥቆማ የለም' : 'No alerts right now'}</p>
+                <p className="text-xs mt-1">{isAmharic ? 'ኩሽና ያሳወቀው ያለቀ እቃ የለም።' : 'Kitchen staff haven\'t reported any low items.'}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -534,11 +537,11 @@ export default function InventoryPage() {
                             {notif.item_name}
                           </span>
                           <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-slate-800 dark:text-gray-300 capitalize">
-                            From: {notif.sender_role.replace('_', ' ')}
+                            {isAmharic ? 'ከ: ' : 'From: '}{notif.sender_role.replace('_', ' ')}
                           </span>
                           {notif.status === 'unread' && (
                             <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
-                              NEW
+                              {isAmharic ? 'አዲስ' : 'NEW'}
                             </span>
                           )}
                         </div>
@@ -546,7 +549,7 @@ export default function InventoryPage() {
                           {notif.message}
                         </p>
                         <p className="mt-1 text-xs text-gray-400">
-                          Remaining: {notif.current_quantity} | Min Threshold: {notif.min_threshold} •{' '}
+                          {isAmharic ? 'የቀረው: ' : 'Remaining: '}{notif.current_quantity} | {isAmharic ? 'ዝቅተኛ ገደብ: ' : 'Min Threshold: '}{notif.min_threshold} •{' '}
                           {new Date(notif.created_at).toLocaleString()}
                         </p>
                       </div>
@@ -558,7 +561,7 @@ export default function InventoryPage() {
                           onClick={() => handleResolveNotification(notif.id, 'read')}
                           className="rounded-lg border border-gray-300 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800"
                         >
-                          Mark as Read
+                          {isAmharic ? 'እንደታየ ቁጠር' : 'Mark as Read'}
                         </button>
                       )}
                       {notif.status !== 'resolved' ? (
@@ -567,11 +570,11 @@ export default function InventoryPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition"
                         >
                           <Check size={14} />
-                          Restocked / Resolved
+                          {isAmharic ? 'ተገዝቷል / ተፈቷል' : 'Restocked / Resolved'}
                         </button>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
-                          <CheckCircle2 size={14} /> Resolved
+                          <CheckCircle2 size={14} /> {isAmharic ? 'ተፈቷል' : 'Resolved'}
                         </span>
                       )}
                     </div>
@@ -587,7 +590,7 @@ export default function InventoryPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="restaurant-card p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-400 font-medium">Total Items</p>
+                  <p className="text-xs text-gray-400 font-medium">{isAmharic ? 'ጠቅላላ እቃዎች' : 'Total Items'}</p>
                   <p className="mt-1 text-2xl font-bold text-restaurant-text dark:text-white">
                     {filteredItems.length}
                   </p>
@@ -599,7 +602,7 @@ export default function InventoryPage() {
 
               <div className="restaurant-card p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-400 font-medium">Low Stock Items</p>
+                  <p className="text-xs text-gray-400 font-medium">{isAmharic ? 'ያለቁ/የሚያልቁ እቃዎች' : 'Low Stock Items'}</p>
                   <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">
                     {lowStockCount}
                   </p>
@@ -611,7 +614,7 @@ export default function InventoryPage() {
 
               <div className="restaurant-card p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-400 font-medium">Out of Stock</p>
+                  <p className="text-xs text-gray-400 font-medium">{isAmharic ? 'ሙሉ በሙሉ ያለቁ' : 'Out of Stock'}</p>
                   <p className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
                     {items.filter((i) => Number(i.quantity) === 0).length}
                   </p>
@@ -628,7 +631,7 @@ export default function InventoryPage() {
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search inventory items..."
+                  placeholder={isAmharic ? 'የእቃ ስም ፈልግ...' : 'Search inventory items...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 py-2 pl-10 pr-4 text-sm outline-none focus:border-restaurant-accent dark:text-white"
@@ -647,7 +650,7 @@ export default function InventoryPage() {
                           : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                       }`}
                     >
-                      All
+                      {isAmharic ? 'ሁሉም' : 'All'}
                     </button>
                     <button
                       onClick={() => setFilterType('food')}
@@ -657,7 +660,7 @@ export default function InventoryPage() {
                           : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                       }`}
                     >
-                      Food
+                      {isAmharic ? 'ምግብ' : 'Food'}
                     </button>
                     <button
                       onClick={() => setFilterType('drink')}
@@ -667,7 +670,7 @@ export default function InventoryPage() {
                           : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'
                       }`}
                     >
-                      Drinks
+                      {isAmharic ? 'መጠጥ' : 'Drinks'}
                     </button>
                   </div>
                 )}
@@ -678,9 +681,9 @@ export default function InventoryPage() {
                   onChange={(e) => setStatusFilter(e.target.value as any)}
                   className="rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300"
                 >
-                  <option value="all">All Stock Statuses</option>
-                  <option value="low">Low Stock (≤ Threshold)</option>
-                  <option value="out">Out of Stock (0)</option>
+                  <option value="all">{isAmharic ? 'ሁሉም የእቃ ሁኔታዎች' : 'All Stock Statuses'}</option>
+                  <option value="low">{isAmharic ? 'ያለቀ እቃ (≤ ገደብ)' : 'Low Stock (≤ Threshold)'}</option>
+                  <option value="out">{isAmharic ? 'ያለቀ (0)' : 'Out of Stock (0)'}</option>
                 </select>
               </div>
             </div>
@@ -691,12 +694,12 @@ export default function InventoryPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     <tr>
-                      <th className="px-5 py-3.5">Item Name</th>
-                      <th className="px-4 py-3.5">Category</th>
-                      <th className="px-4 py-3.5 text-center">Current Quantity</th>
-                      <th className="px-4 py-3.5 text-center">Min Threshold</th>
-                      <th className="px-4 py-3.5 text-center">Status</th>
-                      <th className="px-5 py-3.5 text-right">Actions</th>
+                      <th className="px-5 py-3.5">{isAmharic ? 'የእቃው ስም' : 'Item Name'}</th>
+                      <th className="px-4 py-3.5">{isAmharic ? 'ምድብ' : 'Category'}</th>
+                      <th className="px-4 py-3.5 text-center">{isAmharic ? 'ያለው ብዛት' : 'Current Quantity'}</th>
+                      <th className="px-4 py-3.5 text-center">{isAmharic ? 'ዝቅተኛ ገደብ' : 'Min Threshold'}</th>
+                      <th className="px-4 py-3.5 text-center">{isAmharic ? 'ሁኔታ' : 'Status'}</th>
+                      <th className="px-5 py-3.5 text-right">{isAmharic ? 'እርምጃዎች' : 'Actions'}</th>
                     </tr>
                   </thead>
 
@@ -705,15 +708,15 @@ export default function InventoryPage() {
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-gray-500">
                           <RefreshCw size={24} className="mx-auto mb-2 animate-spin text-restaurant-accent" />
-                          Loading inventory items...
+                          {isAmharic ? 'የእቃ ክምችት በመጫን ላይ...' : 'Loading inventory items...'}
                         </td>
                       </tr>
                     ) : filteredItems.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400">
                           <Package size={32} className="mx-auto mb-2 text-gray-400" />
-                          <p className="font-semibold">No inventory items found</p>
-                          <p className="text-xs mt-1">Try adjusting your search or add a new item.</p>
+                          <p className="font-semibold">{isAmharic ? 'ምንም የእቃ ክምችት አልተገኘም' : 'No inventory items found'}</p>
+                          <p className="text-xs mt-1">{isAmharic ? 'የፍለጋ ቃልዎን ያስተካክሉ ወይም አዲስ እቃ ይመዝግቡ።' : 'Try adjusting your search or add a new item.'}</p>
                         </td>
                       </tr>
                     ) : (
@@ -759,7 +762,7 @@ export default function InventoryPage() {
                                 ) : (
                                   <ChefHat size={12} />
                                 )}
-                                {item.category_type === 'drink' ? 'Drink' : 'Food'}
+                                {item.category_type === 'drink' ? (isAmharic ? 'መጠጥ' : 'Drink') : (isAmharic ? 'ምግብ' : 'Food')}
                               </span>
                             </td>
 
@@ -775,7 +778,7 @@ export default function InventoryPage() {
                                   }
                                   disabled={updating || Number(item.quantity) <= 0}
                                   className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 transition"
-                                  title="Decrement 1"
+                                  title={isAmharic ? '1 ቀንስ' : 'Decrement 1'}
                                 >
                                   <Minus size={13} />
                                 </button>
@@ -822,7 +825,7 @@ export default function InventoryPage() {
                                   }
                                   disabled={updating}
                                   className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 transition"
-                                  title="Increment 1"
+                                  title={isAmharic ? '1 ጨምር' : 'Increment 1'}
                                 >
                                   <Plus size={13} />
                                 </button>
@@ -844,15 +847,15 @@ export default function InventoryPage() {
                             <td className="px-4 py-4 text-center">
                               {isOut ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                                  Out of Stock
+                                  {isAmharic ? 'አልቋል' : 'Out of Stock'}
                                 </span>
                               ) : isLow ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 animate-pulse">
-                                  <AlertTriangle size={12} /> Low Stock
+                                  <AlertTriangle size={12} /> {isAmharic ? 'እያለቀ ነው' : 'Low Stock'}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                  In Stock
+                                  {isAmharic ? 'በቂ አለ' : 'In Stock'}
                                 </span>
                               )}
                             </td>
@@ -864,10 +867,10 @@ export default function InventoryPage() {
                                 <button
                                   onClick={() => setShowNotifyModal(item)}
                                   className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition"
-                                  title="Send Low Stock Alert to Admin"
+                                  title={isAmharic ? 'እቃ እንዳለቀ ለአስተዳዳሪ ጥቆማ ላክ' : 'Send Low Stock Alert to Admin'}
                                 >
                                   <Send size={13} />
-                                  Report Low
+                                  {isAmharic ? 'እቃ አልቋል በል' : 'Report Low'}
                                 </button>
 
                                 {/* Admin delete button */}
@@ -875,7 +878,7 @@ export default function InventoryPage() {
                                   <button
                                     onClick={() => handleDeleteItem(item.id)}
                                     className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                                    title="Delete Item"
+                                    title={isAmharic ? 'እቃውን ሰርዝ' : 'Delete Item'}
                                   >
                                     <Trash2 size={16} />
                                   </button>
@@ -901,7 +904,7 @@ export default function InventoryPage() {
                 <div className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle size={20} />
                   <h3 className="font-bold text-lg text-restaurant-text dark:text-white">
-                    Report Low Stock to Admin
+                    {isAmharic ? 'እቃ እንዳለቀ ለአስተዳዳሪ አሳውቅ' : 'Report Low Stock to Admin'}
                   </h3>
                 </div>
                 <button
@@ -914,22 +917,22 @@ export default function InventoryPage() {
 
               <div>
                 <p className="text-sm font-semibold text-restaurant-text dark:text-white">
-                  Item: <span className="text-restaurant-accent">{showNotifyModal.name}</span>
+                  {isAmharic ? 'እቃ: ' : 'Item: '}<span className="text-restaurant-accent">{showNotifyModal.name}</span>
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Current Stock: <strong>{showNotifyModal.quantity} {showNotifyModal.unit}</strong> | Minimum Threshold: <strong>{showNotifyModal.min_threshold} {showNotifyModal.unit}</strong>
+                  {isAmharic ? 'ያለው ክምችት: ' : 'Current Stock: '}<strong>{showNotifyModal.quantity} {showNotifyModal.unit}</strong> | {isAmharic ? 'ዝቅተኛ ገደብ: ' : 'Minimum Threshold: '}<strong>{showNotifyModal.min_threshold} {showNotifyModal.unit}</strong>
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                  Optional Note for Admin
+                  {isAmharic ? 'ተጨማሪ ማስታወሻ (አማራጭ)' : 'Optional Note for Admin'}
                 </label>
                 <textarea
                   rows={3}
                   value={notifyCustomMessage}
                   onChange={(e) => setNotifyCustomMessage(e.target.value)}
-                  placeholder="e.g. Only 2kg left, urgently need restock for dinner service..."
+                  placeholder={isAmharic ? 'ለምሳሌ፡ 2 ኪሎ ብቻ ነው የቀረው፣ ለምሳ ሰዓት በአስቸኳይ ያስፈልጋል...' : 'e.g. Only 2kg left, urgently need restock for dinner service...'}
                   className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-sm outline-none focus:border-restaurant-accent dark:text-white"
                 />
               </div>
@@ -940,7 +943,7 @@ export default function InventoryPage() {
                   disabled={sendingAlert}
                   className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
                 >
-                  Cancel
+                  {isAmharic ? 'ይቅር' : 'Cancel'}
                 </button>
                 <button
                   onClick={handleSendLowStockAlert}
@@ -948,7 +951,7 @@ export default function InventoryPage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-50 transition"
                 >
                   <Send size={15} />
-                  {sendingAlert ? 'Sending Alert...' : 'Send Alert Now'}
+                  {sendingAlert ? (isAmharic ? 'በመላክ ላይ...' : 'Sending Alert...') : (isAmharic ? 'አሁን ላክ' : 'Send Alert Now')}
                 </button>
               </div>
             </div>
@@ -963,7 +966,7 @@ export default function InventoryPage() {
                 <div className="flex items-center gap-2 text-restaurant-accent">
                   <Package size={20} />
                   <h3 className="font-bold text-lg text-restaurant-text dark:text-white">
-                    Add New Inventory Item
+                    {isAmharic ? 'አዲስ የእቃ ክምችት መዝግብ' : 'Add New Inventory Item'}
                   </h3>
                 </div>
                 <button
@@ -977,14 +980,14 @@ export default function InventoryPage() {
               <form onSubmit={handleCreateItem} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                    Item Name *
+                    {isAmharic ? 'የእቃው ስም *' : 'Item Name *'}
                   </label>
                   <input
                     type="text"
                     required
                     value={newItem.name}
                     onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                    placeholder="e.g. Beef, Coffee Beans, Cooking Oil..."
+                    placeholder={isAmharic ? 'ለምሳሌ፡ ስጋ፣ የቡና ፍሬ፣ ዘይት...' : 'e.g. Beef, Coffee Beans, Cooking Oil...'}
                     className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm outline-none focus:border-restaurant-accent dark:text-white"
                   />
                 </div>
@@ -992,7 +995,7 @@ export default function InventoryPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                      Kitchen Department *
+                      {isAmharic ? 'የሚመለከተው ክፍል *' : 'Kitchen Department *'}
                     </label>
                     <select
                       value={newItem.category_type}
@@ -1001,21 +1004,21 @@ export default function InventoryPage() {
                       }
                       className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm font-medium dark:text-white outline-none"
                     >
-                      <option value="food">Food Kitchen</option>
-                      <option value="drink">Drinks Kitchen & Bar</option>
+                      <option value="food">{isAmharic ? 'የምግብ ማብሰያ' : 'Food Kitchen'}</option>
+                      <option value="drink">{isAmharic ? 'የመጠጥ ማዘጋጃ / ባር' : 'Drinks Kitchen & Bar'}</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                      Unit of Measurement *
+                      {isAmharic ? 'መለኪያ መስፈሪያ (ኪሎ/ሊትር/ፍሬ) *' : 'Unit of Measurement *'}
                     </label>
                     <input
                       type="text"
                       required
                       value={newItem.unit}
                       onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                      placeholder="e.g. kg, liters, bottles, pcs"
+                      placeholder={isAmharic ? 'ለምሳሌ፡ ኪሎ፣ ሊትር፣ ፍሬ' : 'e.g. kg, liters, bottles, pcs'}
                       className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm outline-none focus:border-restaurant-accent dark:text-white"
                     />
                   </div>
@@ -1024,7 +1027,7 @@ export default function InventoryPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                      Initial Quantity
+                      {isAmharic ? 'የመጀመሪያ ብዛት' : 'Initial Quantity'}
                     </label>
                     <input
                       type="number"
@@ -1041,7 +1044,7 @@ export default function InventoryPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                      Low Threshold
+                      {isAmharic ? 'ዝቅተኛ ገደብ' : 'Low Threshold'}
                     </label>
                     <input
                       type="number"
@@ -1057,7 +1060,7 @@ export default function InventoryPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                      Cost per Unit (ETB)
+                      {isAmharic ? 'የአንዱ መግዣ ዋጋ (ብር)' : 'Cost per Unit (ETB)'}
                     </label>
                     <input
                       type="number"
@@ -1073,13 +1076,13 @@ export default function InventoryPage() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-                    Notes
+                    {isAmharic ? 'ማስታወሻ' : 'Notes'}
                   </label>
                   <input
                     type="text"
                     value={newItem.notes}
                     onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
-                    placeholder="e.g. Stored in dry pantry shelf B"
+                    placeholder={isAmharic ? 'ለምሳሌ፡ በመጋዘን ክፍል ውስጥ ይቀመጣል' : 'e.g. Stored in dry pantry shelf B'}
                     className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-sm outline-none focus:border-restaurant-accent dark:text-white"
                   />
                 </div>
@@ -1090,7 +1093,7 @@ export default function InventoryPage() {
                     onClick={() => setShowAddModal(false)}
                     className="rounded-lg border px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
                   >
-                    Cancel
+                    {isAmharic ? 'ይቅር' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
@@ -1098,7 +1101,7 @@ export default function InventoryPage() {
                     className="inline-flex items-center gap-2 rounded-lg bg-restaurant-accent px-4 py-2 text-sm font-semibold text-white hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
                     <Plus size={16} />
-                    {savingItem ? 'Saving Item...' : 'Add to Inventory'}
+                    {savingItem ? (isAmharic ? 'በመመዝገብ ላይ...' : 'Saving Item...') : (isAmharic ? 'መዝግብ' : 'Add to Inventory')}
                   </button>
                 </div>
               </form>

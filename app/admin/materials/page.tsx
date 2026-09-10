@@ -43,6 +43,15 @@ const CATEGORIES = [
   'Other',
 ]
 
+const CATEGORY_LABELS: Record<string, { en: string; am: string }> = {
+  Furniture: { en: 'Furniture', am: 'የቤት እቃዎች' },
+  Glassware: { en: 'Glassware', am: 'ብርጭቆዎች' },
+  Tableware: { en: 'Tableware', am: 'የጠረጴዛ እቃዎች' },
+  Equipment: { en: 'Equipment', am: 'መሳሪያዎች' },
+  Electronics: { en: 'Electronics', am: 'ኤሌክትሮኒክስ' },
+  Other: { en: 'Other', am: 'ሌሎች' },
+}
+
 const CONDITIONS = [
   { value: 'good', label: 'Good', amLabel: 'ጥሩ' },
   { value: 'fair', label: 'Fair', amLabel: 'መካከለኛ' },
@@ -58,6 +67,15 @@ const LOCATIONS = [
   'Outdoor Patio',
   'Storage Room',
 ]
+
+const LOCATION_LABELS: Record<string, { en: string; am: string }> = {
+  'Main Dining Area': { en: 'Main Dining Area', am: 'ዋና የመመገቢያ አዳራሽ' },
+  'Bar & Drinks Station': { en: 'Bar & Drinks Station', am: 'ባር እና መጠጥ ማዘጋጃ' },
+  Kitchen: { en: 'Kitchen', am: 'ማብሰያ ቤት' },
+  'Coffee Station': { en: 'Coffee Station', am: 'ቡና ማዘጋጃ' },
+  'Outdoor Patio': { en: 'Outdoor Patio', am: 'በረንዳ / ውጭ' },
+  'Storage Room': { en: 'Storage Room', am: 'መጋዘን' },
+}
 
 export default function CafeMaterialsPage() {
   const { language } = useAdminLanguage()
@@ -471,7 +489,7 @@ ON CONFLICT (id) DO NOTHING;`
               <span className="text-2xl font-bold text-restaurant-text dark:text-white">
                 {stats.totalDistinct}
               </span>
-              <span className="text-[11px] text-gray-400">items</span>
+              <span className="text-[11px] text-gray-400">{isAmharic ? 'እቃዎች' : 'items'}</span>
             </div>
           </div>
 
@@ -483,7 +501,7 @@ ON CONFLICT (id) DO NOTHING;`
               <span className="text-2xl font-bold text-restaurant-accent">
                 {stats.totalUnits}
               </span>
-              <span className="text-[11px] text-gray-400">pieces / units</span>
+              <span className="text-[11px] text-gray-400">{isAmharic ? 'ፍሬ / እቃዎች' : 'pieces / units'}</span>
             </div>
           </div>
 
@@ -495,7 +513,7 @@ ON CONFLICT (id) DO NOTHING;`
               <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {stats.goodCount}
               </span>
-              <span className="text-[11px] text-gray-400">items</span>
+              <span className="text-[11px] text-gray-400">{isAmharic ? 'እቃዎች' : 'items'}</span>
             </div>
           </div>
 
@@ -507,7 +525,7 @@ ON CONFLICT (id) DO NOTHING;`
               <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                 {stats.repairCount}
               </span>
-              <span className="text-[11px] text-gray-400">items</span>
+              <span className="text-[11px] text-gray-400">{isAmharic ? 'እቃዎች' : 'items'}</span>
             </div>
           </div>
         </div>
@@ -534,7 +552,7 @@ ON CONFLICT (id) DO NOTHING;`
               <option value="all">{isAmharic ? 'ሁሉም ምድቦች' : 'All Categories'}</option>
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
-                  {cat}
+                  {isAmharic ? (CATEGORY_LABELS[cat]?.am || cat) : cat}
                 </option>
               ))}
             </select>
@@ -583,7 +601,7 @@ ON CONFLICT (id) DO NOTHING;`
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-restaurant-accent">
-                        {item.category}
+                        {isAmharic ? (CATEGORY_LABELS[item.category]?.am || item.category) : item.category}
                       </span>
                       <h3 className="text-sm font-bold text-restaurant-text dark:text-white mt-0.5 line-clamp-1">
                         {item.name}
@@ -594,14 +612,14 @@ ON CONFLICT (id) DO NOTHING;`
                       <button
                         onClick={() => handleOpenEdit(item)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 transition"
-                        title="Edit material"
+                        title={isAmharic ? 'አስተካክል' : 'Edit material'}
                       >
                         <Edit2 size={13} />
                       </button>
                       <button
                         onClick={() => setItemToDelete(item)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition"
-                        title="Delete material"
+                        title={isAmharic ? 'ሰርዝ' : 'Delete material'}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -613,7 +631,9 @@ ON CONFLICT (id) DO NOTHING;`
                     {item.location && (
                       <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
                         <MapPin size={11} className="shrink-0 text-gray-400" />
-                        <span className="truncate">{item.location}</span>
+                        <span className="truncate">
+                          {isAmharic ? (LOCATION_LABELS[item.location]?.am || item.location) : item.location}
+                        </span>
                       </div>
                     )}
                     {item.notes && (
@@ -633,19 +653,19 @@ ON CONFLICT (id) DO NOTHING;`
                       onClick={() => handleAdjustQuantity(item, -1)}
                       disabled={item.quantity <= 0}
                       className="text-gray-400 hover:text-restaurant-text dark:hover:text-white disabled:opacity-20 transition"
-                      title="Decrease by 1"
+                      title={isAmharic ? '1 ቀንስ' : 'Decrease by 1'}
                     >
                       <MinusCircle size={17} />
                     </button>
 
                     <span className="text-xs font-bold text-restaurant-text dark:text-white min-w-[2.5rem] text-center">
-                      {item.quantity} <span className="text-[10px] font-normal text-gray-400">{item.unit}</span>
+                      {item.quantity} <span className="text-[10px] font-normal text-gray-400">{isAmharic && item.unit === 'pcs' ? 'ፍሬ' : item.unit}</span>
                     </span>
 
                     <button
                       onClick={() => handleAdjustQuantity(item, 1)}
                       className="text-gray-400 hover:text-restaurant-text dark:hover:text-white transition"
-                      title="Increase by 1"
+                      title={isAmharic ? '1 ጨምር' : 'Increase by 1'}
                     >
                       <PlusCircle size={17} />
                     </button>
@@ -694,7 +714,7 @@ ON CONFLICT (id) DO NOTHING;`
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Dining Chairs, Water Glasses, Coffee Cups..."
+                    placeholder={isAmharic ? 'ለምሳሌ፡ የመመገቢያ ወንበሮች፣ የውሃ ብርጭቆዎች፣ የቡና ስኒዎች...' : 'e.g. Dining Chairs, Water Glasses, Coffee Cups...'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs text-restaurant-text dark:text-white outline-none focus:border-restaurant-accent"
                   />
                 </div>
@@ -711,7 +731,7 @@ ON CONFLICT (id) DO NOTHING;`
                     >
                       {CATEGORIES.map((cat) => (
                         <option key={cat} value={cat}>
-                          {cat}
+                          {isAmharic ? (CATEGORY_LABELS[cat]?.am || cat) : cat}
                         </option>
                       ))}
                     </select>
@@ -726,12 +746,14 @@ ON CONFLICT (id) DO NOTHING;`
                       list="locations-list"
                       value={formLocation}
                       onChange={(e) => setFormLocation(e.target.value)}
-                      placeholder="e.g. Main Dining Area"
+                      placeholder={isAmharic ? 'ለምሳሌ፡ ዋና የመመገቢያ አዳራሽ' : 'e.g. Main Dining Area'}
                       className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs text-restaurant-text dark:text-white outline-none focus:border-restaurant-accent"
                     />
                     <datalist id="locations-list">
                       {LOCATIONS.map((loc) => (
-                        <option key={loc} value={loc} />
+                        <option key={loc} value={loc}>
+                          {isAmharic ? (LOCATION_LABELS[loc]?.am || loc) : loc}
+                        </option>
                       ))}
                     </datalist>
                   </div>
@@ -760,7 +782,7 @@ ON CONFLICT (id) DO NOTHING;`
                       type="text"
                       value={formUnit}
                       onChange={(e) => setFormUnit(e.target.value)}
-                      placeholder="pcs, sets, boxes"
+                      placeholder={isAmharic ? 'ፍሬ፣ ሳጥን' : 'pcs, sets, boxes'}
                       className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs text-restaurant-text dark:text-white outline-none focus:border-restaurant-accent"
                     />
                   </div>
@@ -791,7 +813,7 @@ ON CONFLICT (id) DO NOTHING;`
                     rows={2}
                     value={formNotes}
                     onChange={(e) => setFormNotes(e.target.value)}
-                    placeholder="e.g. Model, serial number, supplier details..."
+                    placeholder={isAmharic ? 'ለምሳሌ፡ የሞዴል ቁጥር፣ የአቅራቢው ስልክ...' : 'e.g. Model, serial number, supplier details...'}
                     className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-800/40 p-2.5 text-xs text-restaurant-text dark:text-white outline-none focus:border-restaurant-accent"
                   />
                 </div>

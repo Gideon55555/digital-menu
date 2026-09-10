@@ -1,6 +1,6 @@
 'use client';
 
-import { MenuCategory } from '@/lib/types';
+import { MenuCategory, Language } from '@/lib/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -8,12 +8,14 @@ interface CategoryNavProps {
   categories: MenuCategory[];
   selectedCategoryId?: string;
   onSelectCategory: (categoryId: string) => void;
+  language?: Language;
 }
 
 export function CategoryNav({
   categories,
   selectedCategoryId,
   onSelectCategory,
+  language = 'en',
 }: CategoryNavProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -84,7 +86,7 @@ export function CategoryNav({
                 }`}
               >
                 <span className="mr-2">{getIconEmoji(category.icon)}</span>
-                {category.name.en}
+                {language === 'am' && category.name.am ? category.name.am : category.name.en}
               </button>
             ))}
           </div>

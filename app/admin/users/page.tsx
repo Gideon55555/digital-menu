@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { getAdminAccessToken } from '@/lib/admin-auth';
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 
 type AdminRole =
   | 'admin'
@@ -48,6 +49,7 @@ async function readApiResponse(response: Response) {
 }
 
 export default function UsersPage() {
+  const { isAmharic } = useAdminLanguage();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -211,6 +213,43 @@ export default function UsersPage() {
     }
   }
 
+  const getRoleLabel = (userRole: AdminRole) => {
+    if (isAmharic) {
+      switch (userRole) {
+        case 'admin':
+          return 'አስተዳዳሪ (ሙሉ ፈቃድ)';
+        case 'cashier':
+          return 'ገንዘብ ተቀባይ';
+        case 'order_manager':
+          return 'የትዕዛዝ አስተዳዳሪ';
+        case 'kitchen':
+          return 'የምግብ ማብሰያ';
+        case 'drinks_kitchen':
+          return 'የመጠጥ ማዘጋጃ';
+        case 'waiter':
+          return 'አስተናጋጅ';
+        default:
+          return userRole;
+      }
+    }
+    switch (userRole) {
+      case 'admin':
+        return 'Administrator (Full Access)';
+      case 'cashier':
+        return 'Cashier (Order & POS)';
+      case 'order_manager':
+        return 'Order Manager';
+      case 'kitchen':
+        return 'Food Kitchen';
+      case 'drinks_kitchen':
+        return 'Drinks Kitchen';
+      case 'waiter':
+        return 'Waiter (Floor Orders)';
+      default:
+        return String(userRole).replace('_', ' ');
+    }
+  };
+
   const getRoleBadgeClasses = (userRole: AdminRole) => {
     switch (userRole) {
       case 'admin':
@@ -234,10 +273,12 @@ export default function UsersPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-restaurant-text dark:text-white flex items-center gap-2.5">
             <Users className="text-restaurant-accent" size={28} />
-            User & Staff Management
+            {isAmharic ? 'የሰራተኞች አስተዳደር' : 'User & Staff Management'}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-            Create staff accounts, assign roles, change passwords, and manage permissions.
+            {isAmharic
+              ? 'የሰራተኛ አካውንት ይፍጠሩ፣ የስራ ድርሻ ይመድቡ፣ የይለፍ ቃል ይቀይሩ እና ፈቃዶችን ያስተዳድሩ።'
+              : 'Create staff accounts, assign roles, change passwords, and manage permissions.'}
           </p>
         </div>
 
@@ -259,17 +300,17 @@ export default function UsersPage() {
         <div className="restaurant-card p-6 space-y-4 bg-white dark:bg-slate-900 rounded-2xl border border-cream-200 dark:border-slate-800 shadow-sm">
           <h2 className="text-base font-bold text-restaurant-text dark:text-white flex items-center gap-2">
             <UserPlus size={18} className="text-restaurant-accent" />
-            Create Staff Account
+            {isAmharic ? 'አዲስ የሰራተኛ አካውንት ፍጠር' : 'Create Staff Account'}
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                Full Name *
+                {isAmharic ? 'ሙሉ ስም *' : 'Full Name *'}
               </label>
               <input
                 className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3.5 py-2 text-xs outline-none focus:border-restaurant-accent"
-                placeholder="e.g. John Doe"
+                placeholder={isAmharic ? 'ለምሳሌ፡ ዮናስ አበበ' : 'e.g. John Doe'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -277,12 +318,12 @@ export default function UsersPage() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                Email Address *
+                {isAmharic ? 'ኢሜይል አድራሻ *' : 'Email Address *'}
               </label>
               <input
                 type="email"
                 className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3.5 py-2 text-xs outline-none focus:border-restaurant-accent"
-                placeholder="e.g. waiter@restaurant.com"
+                placeholder="waiter@restaurant.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -290,12 +331,12 @@ export default function UsersPage() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                Password (min 6 characters) *
+                {isAmharic ? 'የይለፍ ቃል (ቢያንስ 6 ፊደላት) *' : 'Password (min 6 characters) *'}
               </label>
               <div className="relative">
                 <input
                   className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3.5 py-2 pr-10 text-xs outline-none focus:border-restaurant-accent"
-                  placeholder="Enter strong password"
+                  placeholder={isAmharic ? 'ጠንካራ የይለፍ ቃል ያስገቡ' : 'Enter strong password'}
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -313,19 +354,19 @@ export default function UsersPage() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-                System Role *
+                {isAmharic ? 'የስራ ድርሻ *' : 'System Role *'}
               </label>
               <select
                 className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/50 px-3.5 py-2 text-xs outline-none focus:border-restaurant-accent"
                 value={role}
                 onChange={(e) => setRole(e.target.value as AdminRole)}
               >
-                <option value="waiter">Waiter (Floor Orders)</option>
-                <option value="cashier">Cashier (Order & POS)</option>
-                <option value="order_manager">Order Manager</option>
-                <option value="kitchen">Food Kitchen</option>
-                <option value="drinks_kitchen">Drinks Kitchen</option>
-                <option value="admin">Administrator (Full Access)</option>
+                <option value="waiter">{isAmharic ? 'አስተናጋጅ (የትዕዛዝ መውሰጃ)' : 'Waiter (Floor Orders)'}</option>
+                <option value="cashier">{isAmharic ? 'ገንዘብ ተቀባይ (ክፍያ እና ትዕዛዝ)' : 'Cashier (Order & POS)'}</option>
+                <option value="order_manager">{isAmharic ? 'የትዕዛዝ አስተዳዳሪ' : 'Order Manager'}</option>
+                <option value="kitchen">{isAmharic ? 'የምግብ ማብሰያ (ኪችን)' : 'Food Kitchen'}</option>
+                <option value="drinks_kitchen">{isAmharic ? 'የመጠጥ ማዘጋጃ (ባር)' : 'Drinks Kitchen'}</option>
+                <option value="admin">{isAmharic ? 'ዋና አስተዳዳሪ (ሙሉ ፈቃድ)' : 'Administrator (Full Access)'}</option>
               </select>
             </div>
           </div>
@@ -337,7 +378,15 @@ export default function UsersPage() {
               className="inline-flex items-center gap-1.5 rounded-xl bg-restaurant-accent px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
             >
               <UserPlus size={15} />
-              <span>{saving ? 'Creating Account...' : 'Create Account'}</span>
+              <span>
+                {saving
+                  ? isAmharic
+                    ? 'በመፍጠር ላይ...'
+                    : 'Creating Account...'
+                  : isAmharic
+                  ? 'አካውንት ፍጠር'
+                  : 'Create Account'}
+              </span>
             </button>
           </div>
         </div>
@@ -347,14 +396,18 @@ export default function UsersPage() {
           <div className="border-b border-cream-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
             <div className="font-bold text-sm text-restaurant-text dark:text-white flex items-center gap-2">
               <Shield size={16} className="text-restaurant-accent" />
-              Existing Staff Accounts ({users.length})
+              {isAmharic ? `የተመዘገቡ ሰራተኞች (${users.length})` : `Existing Staff Accounts (${users.length})`}
             </div>
           </div>
 
           {loading ? (
-            <div className="p-8 text-center text-xs text-gray-500">Loading accounts...</div>
+            <div className="p-8 text-center text-xs text-gray-500">
+              {isAmharic ? 'አካውንቶችን በመጫን ላይ...' : 'Loading accounts...'}
+            </div>
           ) : users.length === 0 ? (
-            <div className="p-8 text-center text-xs text-gray-500">No staff accounts found.</div>
+            <div className="p-8 text-center text-xs text-gray-500">
+              {isAmharic ? 'ምንም የተመዘገበ ሰራተኛ የለም።' : 'No staff accounts found.'}
+            </div>
           ) : (
             <div className="divide-y divide-cream-100 dark:divide-slate-800">
               {users.map((user) => (
@@ -372,7 +425,7 @@ export default function UsersPage() {
                           user.role
                         )}`}
                       >
-                        {user.role.replace('_', ' ')}
+                        {getRoleLabel(user.role)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>
@@ -387,10 +440,10 @@ export default function UsersPage() {
                         setError('');
                       }}
                       className="inline-flex items-center gap-1 rounded-lg border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-cream-50 dark:hover:bg-slate-700 transition"
-                      title="Change user's password"
+                      title={isAmharic ? 'የይለፍ ቃል ቀይር' : "Change user's password"}
                     >
                       <KeyRound size={13} className="text-restaurant-accent" />
-                      <span>Change Password</span>
+                      <span>{isAmharic ? 'የይለፍ ቃል ቀይር' : 'Change Password'}</span>
                     </button>
 
                     <button
@@ -399,10 +452,10 @@ export default function UsersPage() {
                         setError('');
                       }}
                       className="inline-flex items-center gap-1 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50/60 dark:bg-red-950/30 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition"
-                      title="Delete user"
+                      title={isAmharic ? 'ሰራተኛ ሰርዝ' : 'Delete user'}
                     >
                       <Trash2 size={13} />
-                      <span>Delete</span>
+                      <span>{isAmharic ? 'ሰርዝ' : 'Delete'}</span>
                     </button>
                   </div>
                 </div>
@@ -421,7 +474,7 @@ export default function UsersPage() {
                 <div className="flex items-center gap-2">
                   <KeyRound className="text-restaurant-accent" size={20} />
                   <h3 className="text-base font-bold text-restaurant-text dark:text-white">
-                    Change Password
+                    {isAmharic ? 'የይለፍ ቃል መቀየሪያ' : 'Change Password'}
                   </h3>
                 </div>
                 <button
@@ -434,7 +487,9 @@ export default function UsersPage() {
 
               <div className="mt-4 space-y-4">
                 <div className="rounded-xl bg-cream-50 dark:bg-slate-800/60 p-3 border border-cream-200 dark:border-slate-800 text-xs">
-                  <div className="text-gray-500">Updating password for:</div>
+                  <div className="text-gray-500">
+                    {isAmharic ? 'የይለፍ ቃል የሚቀየርለት ሰራተኛ:' : 'Updating password for:'}
+                  </div>
                   <div className="font-bold text-restaurant-text dark:text-white mt-0.5">
                     {passwordModalUser.name} ({passwordModalUser.email})
                   </div>
@@ -442,14 +497,14 @@ export default function UsersPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    New Password (min 6 characters) *
+                    {isAmharic ? 'አዲስ የይለፍ ቃል (ቢያንስ 6 ፊደላት) *' : 'New Password (min 6 characters) *'}
                   </label>
                   <div className="relative">
                     <input
                       type={showNewPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
+                      placeholder={isAmharic ? 'አዲስ የይለፍ ቃል ያስገቡ' : 'Enter new password'}
                       className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2.5 pr-10 text-xs outline-none focus:border-restaurant-accent"
                     />
                     <button
@@ -468,7 +523,7 @@ export default function UsersPage() {
                     onClick={() => setPasswordModalUser(null)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ተው' : 'Cancel'}
                   </button>
                   <button
                     type="button"
@@ -476,7 +531,13 @@ export default function UsersPage() {
                     disabled={updatingPassword || newPassword.length < 6}
                     className="flex-1 rounded-xl bg-restaurant-accent px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
                   >
-                    {updatingPassword ? 'Saving...' : 'Update Password'}
+                    {updatingPassword
+                      ? isAmharic
+                        ? 'በማስቀመጥ ላይ...'
+                        : 'Saving...'
+                      : isAmharic
+                      ? 'የይለፍ ቃል አድስ'
+                      : 'Update Password'}
                   </button>
                 </div>
               </div>
@@ -494,7 +555,7 @@ export default function UsersPage() {
                 <div className="flex items-center gap-2 text-red-600">
                   <Trash2 size={20} />
                   <h3 className="text-base font-bold text-restaurant-text dark:text-white">
-                    Confirm Delete User
+                    {isAmharic ? 'ሰራተኛ መሰረዝ ማረጋገጫ' : 'Confirm Delete User'}
                   </h3>
                 </div>
                 <button
@@ -507,11 +568,23 @@ export default function UsersPage() {
 
               <div className="mt-4 space-y-4">
                 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                  Are you sure you want to permanently delete user{' '}
-                  <strong className="text-restaurant-text dark:text-white">
-                    {deleteModalUser.name} ({deleteModalUser.email})
-                  </strong>
-                  ? They will immediately lose access to the system.
+                  {isAmharic ? (
+                    <>
+                      እርግጠኛ ነዎት ሰራተኛ{' '}
+                      <strong className="text-restaurant-text dark:text-white">
+                        {deleteModalUser.name} ({deleteModalUser.email})
+                      </strong>{' '}
+                      መሰረዝ ይፈልጋሉ? ወዲያውኑ ወደ ሲስተሙ መግባት አይችሉም።
+                    </>
+                  ) : (
+                    <>
+                      Are you sure you want to permanently delete user{' '}
+                      <strong className="text-restaurant-text dark:text-white">
+                        {deleteModalUser.name} ({deleteModalUser.email})
+                      </strong>
+                      ? They will immediately lose access to the system.
+                    </>
+                  )}
                 </p>
 
                 <div className="flex gap-3 pt-2">
@@ -520,7 +593,7 @@ export default function UsersPage() {
                     onClick={() => setDeleteModalUser(null)}
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-800 dark:text-gray-300"
                   >
-                    Cancel
+                    {isAmharic ? 'ተው' : 'Cancel'}
                   </button>
                   <button
                     type="button"
@@ -528,7 +601,13 @@ export default function UsersPage() {
                     disabled={deleting}
                     className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-red-700 disabled:opacity-50 transition"
                   >
-                    {deleting ? 'Deleting...' : 'Delete User'}
+                    {deleting
+                      ? isAmharic
+                        ? 'በመሰረዝ ላይ...'
+                        : 'Deleting...'
+                      : isAmharic
+                      ? 'ሰራተኛውን ሰርዝ'
+                      : 'Delete User'}
                   </button>
                 </div>
               </div>

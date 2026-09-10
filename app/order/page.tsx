@@ -1,4 +1,3 @@
-
 'use client'
 
 import Image from 'next/image'
@@ -6,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { getAdminAuth, normalizeAdminRole } from '@/lib/admin-auth'
 import { MenuItem, MenuCategory } from '@/lib/types'
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext'
 import {
   Search,
   ShoppingCart,
@@ -40,6 +40,8 @@ type CartItem = {
 }
 
 export default function OrderPage() {
+  const { isAmharic } = useAdminLanguage()
+
   const [tables, setTables] = useState<Table[]>([])
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -99,46 +101,53 @@ export default function OrderPage() {
 
       if (!menuResult.success) {
         throw new Error(
-          menuResult.error || 'Failed to load menu'
+          menuResult.error || 'Failed to load menu items'
         )
       }
 
       if (!categoriesResult.success) {
         throw new Error(
-          categoriesResult.error || 'Failed to load categories'
+          categoriesResult.error ||
+            'Failed to load categories'
         )
       }
 
       if (!sessionsResult.success) {
         throw new Error(
-          sessionsResult.error || 'Failed to load sessions'
+          sessionsResult.error ||
+            'Failed to load table sessions'
         )
       }
 
-      const activeTables = (tablesResult.data || []).filter(
-        (table: Table) => table.active
+      setTables(
+        (tablesResult.data || []).filter(
+          (table: Table) => table.active
+        )
       )
 
-      const availableMenuItems = (menuResult.data || []).filter(
-        (item: MenuItem) => item.available
+      setMenuItems(menuResult.data || [])
+
+      setCategories(
+        (categoriesResult.data || []).filter(
+          (category: MenuCategory) => category.visible
+        )
       )
 
-      const activeSessions = (sessionsResult.data || []).filter(
-        (session: TableSession) =>
-          session.status === 'active'
+      setSessions(
+        (sessionsResult.data || []).filter(
+          (session: TableSession) =>
+            session.status === 'active'
+        )
       )
-
-      setTables(activeTables)
-      setMenuItems(availableMenuItems)
-      setCategories(categoriesResult.data || [])
-      setSessions(activeSessions)
-    } catch (err) {
-      console.error(err)
+    } catch (loadError) {
+      console.error(loadError)
 
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load order screen'
+        loadError instanceof Error
+          ? loadError.message
+          : isAmharic
+          ? 'መረጃዎችን ማምጣት አልተቻለም'
+          : 'Failed to load order page data.'
       )
     } finally {
       setLoading(false)
@@ -146,51 +155,26 @@ export default function OrderPage() {
   }
 
   // --------------------------------------------------
-  // Automatically create/reuse table session
+  // Table selection
   // --------------------------------------------------
 
-  async function createTableSession(table: Table) {
+  async function handleSelectTable(table: Table) {
     try {
-      setOpeningSession(true)
+      setSelectedTable(table)
       setError('')
       setMessage('')
 
-      // Check whether we already know about an active session.
-      const existingSession = sessions.find(
+      const currentSession = sessions.find(
         (session) => session.table_id === table.id
       )
 
-      if (existingSession) {
-        setActiveSession(existingSession)
-
-        setTables((previous) =>
-          previous.map((currentTable) =>
-            currentTable.id === table.id
-              ? {
-                  ...currentTable,
-                  status: 'occupied',
-                }
-              : currentTable
-          )
-        )
-
-        setSelectedTable((previous) =>
-          previous
-            ? {
-                ...previous,
-                status: 'occupied',
-              }
-            : previous
-        )
-
-        setMessage(
-          `${table.name || `Table ${table.table_number}`} is ready for ordering.`
-        )
-
+      if (currentSession) {
+        setActiveSession(currentSession)
         return
       }
 
-      // No known session, so create one automatically.
+      setOpeningSession(true)
+
       const response = await fetch('/api/table-sessions', {
         method: 'POST',
         headers: {
@@ -205,61 +189,29 @@ export default function OrderPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error || 'Failed to create table session'
+          result.error || (isAmharic ? 'የጠረጴዛ ክፍለ-ጊዜ መክፈት አልተቻለም' : 'Failed to create table session')
         )
       }
 
       const newSession: TableSession = result.data
 
-      // Set active session immediately.
+      setSessions((previous) => [
+        ...previous.filter(
+          (session) => session.id !== newSession.id
+        ),
+        newSession,
+      ])
+
       setActiveSession(newSession)
-
-      // Add it to our local session list.
-      setSessions((previous) => {
-        const alreadyExists = previous.some(
-          (session) => session.id === newSession.id
-        )
-
-        if (alreadyExists) {
-          return previous
-        }
-
-        return [...previous, newSession]
-      })
-
-      // Mark table occupied immediately in UI.
-      setTables((previous) =>
-        previous.map((currentTable) =>
-          currentTable.id === table.id
-            ? {
-                ...currentTable,
-                status: 'occupied',
-              }
-            : currentTable
-        )
-      )
-
-      setSelectedTable((previous) =>
-        previous
-          ? {
-              ...previous,
-              status: 'occupied',
-            }
-          : previous
-      )
-
-      setMessage(
-        `${table.name || `Table ${table.table_number}`} is ready for ordering.`
-      )
-    } catch (err) {
-      console.error(err)
-
-      setActiveSession(null)
+    } catch (sessionError) {
+      console.error(sessionError)
 
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to create table session'
+        sessionError instanceof Error
+          ? sessionError.message
+          : isAmharic
+          ? 'ጠረጴዛውን ማዘጋጀት አልተቻለም'
+          : 'Failed to prepare table session.'
       )
     } finally {
       setOpeningSession(false)
@@ -267,48 +219,7 @@ export default function OrderPage() {
   }
 
   // --------------------------------------------------
-  // Select table
-  //
-  // If active session exists:
-  //   reuse it.
-  //
-  // If no active session:
-  //   automatically create one.
-  // --------------------------------------------------
-
-  async function handleSelectTable(table: Table) {
-    if (openingSession) {
-      return
-    }
-
-    setSelectedTable(table)
-    setMessage('')
-    setError('')
-
-    const existingSession = sessions.find(
-      (session) => session.table_id === table.id
-    )
-
-    if (existingSession) {
-      // Existing occupied table.
-      setActiveSession(existingSession)
-
-      setMessage(
-        `${table.name || `Table ${table.table_number}`} is ready for ordering.`
-      )
-
-      return
-    }
-
-    // No session exists.
-    // Automatically create one.
-    setActiveSession(null)
-
-    await createTableSession(table)
-  }
-
-  // --------------------------------------------------
-  // Filter menu
+  // Filtering
   // --------------------------------------------------
 
   const filteredItems = useMemo(() => {
@@ -317,35 +228,62 @@ export default function OrderPage() {
         selectedCategory === 'all' ||
         item.categoryId === selectedCategory
 
-      const searchText = search.toLowerCase().trim()
+      const nameMatch =
+        item.name.en
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        Boolean(
+          item.name.am
+            ?.toLowerCase()
+            .includes(search.toLowerCase())
+        )
 
-      const matchesSearch =
-        !searchText ||
-        item.name.en.toLowerCase().includes(searchText) ||
-        (item.name.am || '').includes(searchText)
+      const descriptionMatch =
+        item.description.en
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        Boolean(
+          item.description.am
+            ?.toLowerCase()
+            .includes(search.toLowerCase())
+        )
 
-      return matchesCategory && matchesSearch
+      return (
+        matchesCategory &&
+        (nameMatch || descriptionMatch) &&
+        item.available
+      )
     })
-  }, [
-    menuItems,
-    selectedCategory,
-    search,
-  ])
+  }, [menuItems, selectedCategory, search])
 
-  const selectedItemIds = useMemo(
-    () => new Set(cart.map((item) => item.menuItem.id)),
-    [cart]
-  )
+  const selectedItemIds = useMemo(() => {
+    return new Set(cart.map((item) => item.menuItem.id))
+  }, [cart])
 
   // --------------------------------------------------
-  // Cart
+  // Cart management
   // --------------------------------------------------
 
   function addToCart(item: MenuItem) {
+    if (!selectedTable) {
+      setError(isAmharic ? 'እባክዎ መጀመሪያ ጠረጴዛ ይምረጡ።' : 'Please select a table before adding items.')
+      return
+    }
+
+    if (!activeSession) {
+      setError(
+        isAmharic
+          ? 'ጠረጴዛው ገና እየተዘጋጀ ነው። እባክዎ ትንሽ ይጠብቁ።'
+          : 'The table session is not ready yet. Please wait a moment.'
+      )
+      return
+    }
+
+    setError('')
+
     setCart((previous) => {
       const existing = previous.find(
-        (cartItem) =>
-          cartItem.menuItem.id === item.id
+        (cartItem) => cartItem.menuItem.id === item.id
       )
 
       if (existing) {
@@ -426,19 +364,21 @@ export default function OrderPage() {
 
   async function submitOrder() {
     if (!selectedTable) {
-      setError('Please select a table.')
+      setError(isAmharic ? 'እባክዎ ጠረጴዛ ይምረጡ።' : 'Please select a table.')
       return
     }
 
     if (!activeSession) {
       setError(
-        'The table is still being prepared. Please wait a moment.'
+        isAmharic
+          ? 'ጠረጴዛው ገና እየተዘጋጀ ነው። እባክዎ ትንሽ ይጠብቁ።'
+          : 'The table is still being prepared. Please wait a moment.'
       )
       return
     }
 
     if (cart.length === 0) {
-      setError('Please add at least one item.')
+      setError(isAmharic ? 'እባክዎ ቢያንስ አንድ ምግብ ይምረጡ።' : 'Please add at least one item.')
       return
     }
 
@@ -448,7 +388,7 @@ export default function OrderPage() {
       setMessage('')
 
       const auth = await getAdminAuth()
-      const role = auth ? normalizeAdminRole(auth.adminUser.role) : null
+      const role = auth ? normalizeAdminRole(auth.adminUser.role) : 'waiter'
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -459,12 +399,13 @@ export default function OrderPage() {
           table_id: selectedTable.id,
           table_session_id: activeSession.id,
           order_type: 'dine_in',
-          waiter_id: auth?.adminUser?.id || null,
-          waiter_name: auth?.adminUser?.name || null,
           creator_role: role,
+          waiter_name: auth?.adminUser?.name || null,
+          waiter_email: auth?.adminUser?.email || null,
           items: cart.map((item) => ({
             menu_item_id: item.menuItem.id,
             quantity: item.quantity,
+            unit_price: item.menuItem.price,
             notes: item.notes || null,
           })),
         }),
@@ -474,22 +415,27 @@ export default function OrderPage() {
 
       if (!response.ok || !result.success) {
         throw new Error(
-          result.error || 'Failed to create order'
+          result.error || (isAmharic ? 'ትዕዛዝ መላክ አልተቻለም' : 'Failed to submit order')
         )
       }
 
       setMessage(
-        `Order ${result.data.order_number} created successfully.`
+        isAmharic
+          ? `ትዕዛዝ #${result.data.order_number} በተሳካ ሁኔታ ተልኳል!`
+          : `Order #${result.data.order_number} submitted successfully!`
       )
 
       setCart([])
-    } catch (err) {
-      console.error(err)
+      await loadData()
+    } catch (submitError) {
+      console.error(submitError)
 
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to create order'
+        submitError instanceof Error
+          ? submitError.message
+          : isAmharic
+          ? 'ትዕዛዝ መላክ አልተቻለም።'
+          : 'Failed to submit order.'
       )
     } finally {
       setSubmitting(false)
@@ -497,67 +443,66 @@ export default function OrderPage() {
   }
 
   // --------------------------------------------------
-  // Loading
+  // Render
   // --------------------------------------------------
 
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center p-12">
-          <p className="text-gray-500">
-            Loading order screen...
-          </p>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-gray-500 dark:text-gray-400">
+            {isAmharic ? 'የትዕዛዝ ተርሚናል በመጫን ላይ...' : 'Loading order terminal...'}
+          </div>
         </div>
       </AdminLayout>
     )
   }
-
-  // --------------------------------------------------
-  // Page
-  // --------------------------------------------------
 
   return (
     <AdminLayout>
       <div className="space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b dark:border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-cream-200 dark:border-slate-800">
           <div>
             <h1 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white">
-              Take Order
+              {isAmharic ? 'ትዕዛዝ መውሰጃ' : 'Take Order'}
             </h1>
 
-            <p className="text-sm text-gray-500">
-              Select a table and add menu items
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {isAmharic
+                ? 'ጠረጴዛ ይምረጡ እና የታዘዙ ምግቦችን ያክሉ'
+                : 'Select a table and add menu items'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <ShoppingCart size={20} />
+          <div className="flex items-center gap-2 text-sm bg-cream-100 dark:bg-slate-800 px-3.5 py-2 rounded-xl text-restaurant-text dark:text-white">
+            <ShoppingCart size={20} className="text-restaurant-accent" />
 
             <span className="font-semibold">
               {cart.reduce(
                 (total, item) =>
                   total + item.quantity,
                 0
-              )}
+              )}{' '}
+              {isAmharic ? 'እቃዎች' : 'items'}
             </span>
           </div>
 
         </div>
 
-      <main className="p-6">
+      <main className="p-2 sm:p-4">
 
         {/* Messages */}
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900/60 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
 
         {message && (
-          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/40 dark:border-green-900/60 px-4 py-3 text-sm text-green-700 dark:text-green-300">
             {message}
           </div>
         )}
@@ -567,10 +512,10 @@ export default function OrderPage() {
         <section className="mb-8">
 
           <div className="mb-4 flex items-center gap-2">
-            <Utensils size={20} />
+            <Utensils size={20} className="text-restaurant-accent" />
 
-            <h2 className="text-xl font-semibold">
-              Select Table
+            <h2 className="text-xl font-semibold text-restaurant-text dark:text-white">
+              {isAmharic ? 'ጠረጴዛ ይምረጡ' : 'Select Table'}
             </h2>
           </div>
 
@@ -599,8 +544,8 @@ export default function OrderPage() {
                   disabled={openingSession}
                   className={`rounded-xl border p-4 text-left transition ${
                     isSelected
-                      ? 'border-green-500 bg-green-50 ring-2 ring-green-200 dark:bg-green-950/20 dark:ring-green-900/40'
-                      : 'bg-white hover:border-restaurant-accent dark:bg-slate-900 dark:border-slate-700'
+                      ? 'border-restaurant-accent bg-restaurant-accent/10 ring-2 ring-restaurant-accent/30 dark:bg-restaurant-accent/20'
+                      : 'bg-white hover:border-restaurant-accent dark:bg-slate-900 dark:border-slate-800'
                   } ${
                     openingSession
                       ? 'cursor-wait opacity-70'
@@ -610,29 +555,29 @@ export default function OrderPage() {
 
                   <div className="flex items-center justify-between">
 
-                    <span className="text-lg font-bold">
+                    <span className="text-lg font-bold text-gray-900 dark:text-white">
                       {table.name ||
-                        `Table ${table.table_number}`}
+                        (isAmharic ? `ጠረጴዛ ${table.table_number}` : `Table ${table.table_number}`)}
                     </span>
 
                     {hasSession && (
-                      <span className="h-3 w-3 rounded-full bg-red-500" />
+                      <span className="h-3 w-3 rounded-full bg-rose-500 shadow-xs" title="Occupied" />
                     )}
 
                   </div>
 
-                  <p className="mt-1 text-sm text-gray-500">
-                    Seats {table.capacity}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {isAmharic ? `መቀመጫ: ${table.capacity}` : `Seats ${table.capacity}`}
                   </p>
 
-                  <p className="mt-2 text-xs font-medium">
+                  <p className="mt-2 text-xs font-semibold">
 
                     {isOpeningThisTable
-                      ? 'Preparing...'
+                      ? isAmharic ? 'በዝግጅት ላይ...' : 'Preparing...'
                       : hasSession
-                        ? 'Occupied'
+                        ? <span className="text-rose-600 dark:text-rose-400">{isAmharic ? 'የተያዘ' : 'Occupied'}</span>
                         : table.status === 'available'
-                          ? 'Available'
+                          ? <span className="text-emerald-600 dark:text-emerald-400">{isAmharic ? 'ነፃ' : 'Available'}</span>
                           : table.status}
 
                   </p>
@@ -646,17 +591,17 @@ export default function OrderPage() {
           {/* Selected table information */}
 
           {selectedTable && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 dark:bg-slate-900 dark:border-slate-700">
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-cream-200 dark:border-slate-800 bg-white p-4 dark:bg-slate-900 shadow-xs">
 
               <div>
 
-                <p className="font-semibold">
+                <p className="font-bold text-gray-900 dark:text-white">
                   {selectedTable.name ||
-                    `Table ${selectedTable.table_number}`}
+                    (isAmharic ? `ጠረጴዛ ${selectedTable.table_number}` : `Table ${selectedTable.table_number}`)}
                 </p>
 
-                <p className="text-sm text-gray-500">
-                  Capacity: {selectedTable.capacity}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {isAmharic ? `የመቀመጫ ብዛት፡ ${selectedTable.capacity}` : `Capacity: ${selectedTable.capacity} seats`}
                 </p>
 
               </div>
@@ -665,21 +610,21 @@ export default function OrderPage() {
 
               {openingSession ? (
 
-                <span className="flex items-center gap-2 rounded-lg bg-yellow-100 px-4 py-2 text-sm font-medium text-yellow-700">
-                  Preparing table...
+                <span className="flex items-center gap-2 rounded-lg bg-amber-100 dark:bg-amber-950/40 px-4 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+                  {isAmharic ? 'ጠረጴዛው በመዘጋጀት ላይ...' : 'Preparing table...'}
                 </span>
 
               ) : activeSession ? (
 
-                <span className="flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700">
-                  <CheckCircle size={18} />
-                  Table Ready
+                <span className="flex items-center gap-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 px-4 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <CheckCircle size={16} />
+                  {isAmharic ? 'ጠረጴዛው ለትዕዛዝ ዝግጁ ነው' : 'Table Ready for Order'}
                 </span>
 
               ) : (
 
-                <span className="text-sm text-red-600">
-                  Table session unavailable
+                <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  {isAmharic ? 'ክፍት የጠረጴዛ ክፍለ-ጊዜ የለም' : 'Table session unavailable'}
                 </span>
 
               )}
@@ -691,30 +636,32 @@ export default function OrderPage() {
 
         {/* Cart */}
 
-        <section className="mb-8 rounded-2xl border border-green-200 bg-white p-5 shadow-sm dark:border-green-900/40 dark:bg-slate-900">
+        <section className="mb-8 rounded-2xl border border-cream-200 dark:border-slate-800 bg-white p-5 shadow-sm dark:bg-slate-900">
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 
             <div>
 
               <div className="flex items-center gap-2">
-                <ShoppingCart size={20} className="text-green-600" />
+                <ShoppingCart size={20} className="text-restaurant-accent" />
 
-                <h2 className="text-xl font-semibold">
-                  Current Order
+                <h2 className="text-xl font-bold text-restaurant-text dark:text-white">
+                  {isAmharic ? 'የአሁኑ ትዕዛዝ' : 'Current Order'}
                 </h2>
 
               </div>
 
-              <p className="mt-1 text-sm text-gray-500">
-                {cart.length} item{cart.length === 1 ? '' : 's'} selected
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {isAmharic
+                  ? `${cart.length} የተመረጡ ምግቦች`
+                  : `${cart.length} item${cart.length === 1 ? '' : 's'} selected`}
               </p>
 
               {selectedTable && (
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                  Table:{' '}
-                  <span className="font-semibold">
-                    {selectedTable.name || `Table ${selectedTable.table_number}`}
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                  {isAmharic ? 'ጠረጴዛ፡ ' : 'Table: '}
+                  <span className="font-bold text-restaurant-accent">
+                    {selectedTable.name || (isAmharic ? `ጠረጴዛ ${selectedTable.table_number}` : `Table ${selectedTable.table_number}`)}
                   </span>
                 </p>
               )}
@@ -723,9 +670,9 @@ export default function OrderPage() {
 
             <div className="text-right">
 
-              <p className="text-sm text-gray-500">Subtotal</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{isAmharic ? 'ንዑስ ድምር' : 'Subtotal'}</p>
 
-              <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+              <p className="text-2xl font-extrabold text-restaurant-accent">
                 {subtotal.toFixed(2)} ETB
               </p>
 
@@ -733,12 +680,14 @@ export default function OrderPage() {
 
           </div>
 
-          <div className="mt-4 max-h-72 overflow-y-auto rounded-xl border border-green-100 p-3 dark:border-green-900/30">
+          <div className="mt-4 max-h-72 overflow-y-auto rounded-xl border border-cream-100 dark:border-slate-800 p-3">
 
             {cart.length === 0 ? (
 
-              <div className="py-8 text-center text-sm text-gray-500">
-                Select items from the menu to build the order.
+              <div className="py-8 text-center text-xs text-gray-400">
+                {isAmharic
+                  ? 'ትዕዛዝ ለመጀመር ከታች ካለው ሜኑ ምግቦችን ይምረጡ።'
+                  : 'Select items from the menu below to build the order.'}
               </div>
 
             ) : (
@@ -749,18 +698,20 @@ export default function OrderPage() {
 
                   <div
                     key={item.menuItem.id}
-                    className="rounded-xl border border-green-200 bg-green-50/60 p-3 dark:border-green-900/40 dark:bg-green-950/20"
+                    className="rounded-xl border border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800/40 p-3"
                   >
 
                     <div className="flex items-start justify-between gap-3">
 
                       <div>
 
-                        <p className="font-semibold text-restaurant-text dark:text-white">
-                          {item.menuItem.name.en}
+                        <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                          {isAmharic && item.menuItem.name.am
+                            ? item.menuItem.name.am
+                            : item.menuItem.name.en}
                         </p>
 
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {item.menuItem.price} {item.menuItem.currency}
                         </p>
 
@@ -768,7 +719,7 @@ export default function OrderPage() {
 
                       <button
                         onClick={() => removeFromCart(item.menuItem.id)}
-                        className="text-gray-400 hover:text-red-500"
+                        className="text-gray-400 hover:text-rose-500 transition"
                       >
                         <X size={18} />
                       </button>
@@ -777,29 +728,29 @@ export default function OrderPage() {
 
                     <div className="mt-3 flex items-center justify-between gap-3">
 
-                      <div className="flex items-center rounded-lg border border-green-200 dark:border-green-900/40">
+                      <div className="flex items-center rounded-lg border border-cream-300 dark:border-slate-700 bg-white dark:bg-slate-800">
 
                         <button
                           onClick={() => decreaseQuantity(item.menuItem.id)}
-                          className="p-2 hover:bg-green-100 dark:hover:bg-green-900/20"
+                          className="p-1.5 hover:bg-cream-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200"
                         >
-                          <Minus size={16} />
+                          <Minus size={14} />
                         </button>
 
-                        <span className="min-w-8 text-center font-semibold">
+                        <span className="min-w-8 text-center font-bold text-xs text-gray-900 dark:text-white">
                           {item.quantity}
                         </span>
 
                         <button
                           onClick={() => addToCart(item.menuItem)}
-                          className="p-2 hover:bg-green-100 dark:hover:bg-green-900/20"
+                          className="p-1.5 hover:bg-cream-100 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200"
                         >
-                          <Plus size={16} />
+                          <Plus size={14} />
                         </button>
 
                       </div>
 
-                      <span className="font-semibold text-green-700 dark:text-green-400">
+                      <span className="font-bold text-sm text-restaurant-accent">
                         {(Number(item.menuItem.price) * item.quantity).toFixed(2)} {item.menuItem.currency}
                       </span>
 
@@ -808,8 +759,8 @@ export default function OrderPage() {
                     <input
                       value={item.notes}
                       onChange={(e) => updateNotes(item.menuItem.id, e.target.value)}
-                      placeholder="Item note..."
-                      className="mt-3 w-full rounded-lg border border-green-200 bg-white px-3 py-2 text-sm dark:border-green-900/40 dark:bg-slate-950"
+                      placeholder={isAmharic ? 'ልዩ ማስታወሻ (ምሳሌ፡ ጨው እንዳይበዛ)...' : 'Item note (e.g. less spicy)...'}
+                      className="mt-3 w-full rounded-lg border border-cream-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs text-gray-900 dark:text-white outline-none focus:border-restaurant-accent"
                     />
 
                   </div>
@@ -824,8 +775,10 @@ export default function OrderPage() {
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-            <div className="text-sm text-gray-500">
-              The cart stays on top so the order is easy to review.
+            <div className="text-xs text-gray-400">
+              {isAmharic
+                ? 'ትዕዛዙን በቀላሉ ለመከታተል ቅርጫቱ ከላይ ይቀመጣል።'
+                : 'The cart stays on top so the order is easy to review.'}
             </div>
 
             <button
@@ -836,14 +789,14 @@ export default function OrderPage() {
                 !activeSession ||
                 openingSession
               }
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-restaurant-accent px-6 py-3 font-bold text-sm text-white shadow-sm hover:bg-restaurant-accent-dark disabled:cursor-not-allowed disabled:opacity-50 transition"
             >
 
               {submitting
-                ? 'Submitting...'
+                ? isAmharic ? 'በመላክ ላይ...' : 'Submitting...'
                 : openingSession
-                  ? 'Preparing Table...'
-                  : 'Submit Order'}
+                  ? isAmharic ? 'ጠረጴዛው በመዘጋጀት ላይ...' : 'Preparing Table...'
+                  : isAmharic ? 'ትዕዛዙን ላክ' : 'Submit Order'}
 
             </button>
 
@@ -856,8 +809,8 @@ export default function OrderPage() {
         <section>
 
             <div className="mb-4">
-              <h2 className="text-xl font-semibold">
-                Menu
+              <h2 className="text-xl font-bold text-restaurant-text dark:text-white">
+                {isAmharic ? 'የምግብና መጠጥ ዝርዝር' : 'Menu Items'}
               </h2>
             </div>
 
@@ -866,8 +819,8 @@ export default function OrderPage() {
             <div className="relative mb-4">
 
               <Search
-                size={20}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
               />
 
               <input
@@ -876,8 +829,8 @@ export default function OrderPage() {
                 onChange={(e) =>
                   setSearch(e.target.value)
                 }
-                placeholder="Search menu..."
-                className="w-full rounded-lg border bg-white py-3 pl-10 pr-4 dark:bg-slate-900 dark:border-slate-700"
+                placeholder={isAmharic ? 'ምግብ ወይም መጠጥ ፈልግ...' : 'Search menu...'}
+                className="w-full rounded-xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-2.5 pl-10 pr-4 text-xs sm:text-sm text-gray-900 dark:text-white outline-none focus:border-restaurant-accent transition"
               />
 
             </div>
@@ -890,13 +843,13 @@ export default function OrderPage() {
                 onClick={() =>
                   setSelectedCategory('all')
                 }
-                className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ${
+                className={`whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition ${
                   selectedCategory === 'all'
-                    ? 'bg-restaurant-accent text-white'
-                    : 'bg-white dark:bg-slate-900'
+                    ? 'bg-restaurant-accent text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 border border-cream-200 dark:border-slate-800 text-gray-700 dark:text-gray-300 hover:bg-cream-100 dark:hover:bg-slate-800'
                 }`}
               >
-                All
+                {isAmharic ? 'ሁሉም' : 'All'}
               </button>
 
               {categories.map((category) => (
@@ -908,14 +861,14 @@ export default function OrderPage() {
                       category.id
                     )
                   }
-                  className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ${
+                  className={`whitespace-nowrap rounded-xl px-4 py-2 text-xs font-bold transition ${
                     selectedCategory ===
                     category.id
-                      ? 'bg-restaurant-accent text-white'
-                      : 'bg-white dark:bg-slate-900'
+                      ? 'bg-restaurant-accent text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 border border-cream-200 dark:border-slate-800 text-gray-700 dark:text-gray-300 hover:bg-cream-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  {category.name.en}
+                  {isAmharic && category.name.am ? category.name.am : category.name.en}
                 </button>
 
               ))}
@@ -924,7 +877,7 @@ export default function OrderPage() {
 
             {/* Menu Grid */}
 
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
 
               {filteredItems.map((item) => (
 
@@ -938,10 +891,10 @@ export default function OrderPage() {
                     !activeSession ||
                     openingSession
                   }
-                  className={`group overflow-hidden rounded-xl border bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-900 ${selectedItemIds.has(item.id) ? 'border-green-500 ring-2 ring-green-200 dark:ring-green-900/40' : 'dark:border-slate-700'}`}
+                  className={`group overflow-hidden rounded-2xl border bg-white dark:bg-slate-900 text-left shadow-xs transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${selectedItemIds.has(item.id) ? 'border-restaurant-accent ring-2 ring-restaurant-accent/30' : 'border-cream-200 dark:border-slate-800'}`}
                 >
 
-                  <div className="aspect-square overflow-hidden bg-gray-100 dark:bg-slate-800">
+                  <div className="aspect-square overflow-hidden bg-cream-100 dark:bg-slate-800">
 
                     {item.image ? (
 
@@ -950,13 +903,13 @@ export default function OrderPage() {
                         alt={item.name.en}
                         width={400}
                         height={400}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
+                        className="h-full w-full object-cover transition group-hover:scale-105 duration-300"
                       />
 
                     ) : (
 
                       <div className="flex h-full items-center justify-center text-gray-400">
-                        No image
+                        <Utensils size={32} className="opacity-20" />
                       </div>
 
                     )}
@@ -965,30 +918,30 @@ export default function OrderPage() {
 
                   <div className="p-3">
 
-                    <h3 className="font-semibold">
-                      {item.name.en}
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                      {isAmharic && item.name.am ? item.name.am : item.name.en}
                     </h3>
 
-                    {item.name.am && (
-                      <p className="mt-1 text-sm text-gray-400">
+                    {item.name.am && !isAmharic && (
+                      <p className="text-[11px] text-gray-400 mt-0.5">
                         {item.name.am}
                       </p>
                     )}
 
-                    <div className="mt-2 flex items-center justify-between">
+                    <div className="mt-2.5 flex items-center justify-between">
 
-                      <span className="font-bold text-restaurant-accent">
+                      <span className="font-bold text-sm text-restaurant-accent">
                         {item.price}{' '}
                         {item.currency}
                       </span>
 
                       {selectedItemIds.has(item.id) ? (
-                        <span className="rounded-full bg-green-600 p-1.5 text-white">
-                          <CheckCircle size={16} />
+                        <span className="rounded-full bg-restaurant-accent p-1.5 text-white">
+                          <CheckCircle size={14} />
                         </span>
                       ) : (
-                        <span className="rounded-full bg-restaurant-accent p-1.5 text-white">
-                          <Plus size={16} />
+                        <span className="rounded-full bg-cream-200 dark:bg-slate-800 text-gray-700 dark:text-gray-200 p-1.5 group-hover:bg-restaurant-accent group-hover:text-white transition">
+                          <Plus size={14} />
                         </span>
                       )}
 
@@ -1004,14 +957,14 @@ export default function OrderPage() {
 
             {filteredItems.length === 0 && (
 
-              <div className="rounded-xl border border-dashed p-10 text-center">
+              <div className="rounded-2xl border border-dashed border-cream-300 dark:border-slate-800 p-10 text-center">
 
-                <p className="font-medium">
-                  No menu items found
+                <p className="font-semibold text-sm text-gray-700 dark:text-gray-200">
+                  {isAmharic ? 'ምንም ምግብ ወይም መጠጥ አልተገኘም' : 'No menu items found'}
                 </p>
 
-                <p className="mt-1 text-sm text-gray-500">
-                  Try another search or category.
+                <p className="mt-1 text-xs text-gray-400">
+                  {isAmharic ? 'ሌላ ፍለጋ ወይም ምድብ ይሞክሩ።' : 'Try another search or category.'}
                 </p>
 
               </div>
@@ -1026,4 +979,3 @@ export default function OrderPage() {
     </AdminLayout>
   )
 }
-

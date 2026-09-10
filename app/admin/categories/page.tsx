@@ -6,6 +6,7 @@ import {
   MenuCategoryType,
 } from '@/lib/types';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 
 import {
   Edit2,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function CategoriesPage() {
+  const { isAmharic } = useAdminLanguage();
   const [items, setItems] = useState<MenuCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -525,8 +527,8 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="p-8 text-center">
-          Loading categories...
+        <div className="p-8 text-center text-gray-500">
+          {isAmharic ? 'ምድቦችን በመጫን ላይ...' : 'Loading categories...'}
         </div>
       </AdminLayout>
     );
@@ -548,11 +550,13 @@ export default function CategoriesPage() {
 
           <div>
             <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
-              Categories
+              {isAmharic ? 'የምግብ እና መጠጥ ምድቦች' : 'Categories'}
             </h1>
 
             <p className="text-restaurant-text-light dark:text-gray-400 mt-1">
-              Manage menu categories and food/drink types
+              {isAmharic
+                ? 'የምግብና የመጠጥ ምድቦችን ያስተዳድሩ እና ቅደም ተከተል ያስተካክሉ'
+                : 'Manage menu categories and food/drink types'}
             </p>
           </div>
 
@@ -562,7 +566,7 @@ export default function CategoriesPage() {
             className="flex items-center gap-2 px-4 py-2 bg-restaurant-accent text-white rounded-lg hover:bg-restaurant-accent-dark transition-colors font-medium disabled:opacity-50"
           >
             <Plus size={20} />
-            Add Category
+            {isAmharic ? 'አዲስ ምድብ ጨምር' : 'Add Category'}
           </button>
 
         </div>
@@ -571,209 +575,199 @@ export default function CategoriesPage() {
             CATEGORIES GRID
         =================================================== */}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.length === 0 ? (
+          <div className="restaurant-card p-12 text-center text-gray-500">
+            {isAmharic ? 'ምንም ምድብ አልተገኘም' : 'No categories found.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {items.map((category) => {
+            {items.map((category) => {
 
-            const isActionLoading =
-              actionLoading ===
-              category.id;
+              const isActionLoading =
+                actionLoading ===
+                category.id;
 
-            const isDrink =
-              category.type ===
-              'drink';
+              const isDrink =
+                category.type ===
+                'drink';
 
-            return (
-              <div
-                key={category.id}
-                className="restaurant-card p-6 hover:shadow-md transition-shadow"
-              >
+              const primaryName = isAmharic && category.name.am ? category.name.am : category.name.en;
+              const secondaryName = isAmharic && category.name.am ? category.name.en : category.name.am;
 
-                {/* =================================================
-                    CATEGORY HEADER
-                ================================================= */}
+              return (
+                <div
+                  key={category.id}
+                  className="restaurant-card p-6 hover:shadow-md transition-shadow"
+                >
 
-                <div className="flex items-start justify-between mb-4">
+                  {/* =================================================
+                      CATEGORY HEADER
+                  ================================================= */}
 
-                  <div className="flex-1">
+                  <div className="flex items-start justify-between mb-4">
 
-                    <h3 className="text-lg font-semibold text-restaurant-text dark:text-white">
-                      {category.name.en}
-                    </h3>
+                    <div className="flex-1">
 
-                    {category.name.am && (
-                      <p className="text-sm text-restaurant-text-light dark:text-gray-400">
-                        {category.name.am}
-                      </p>
-                    )}
+                      <h3 className="text-lg font-semibold text-restaurant-text dark:text-white">
+                        {primaryName}
+                      </h3>
+
+                      {secondaryName && secondaryName !== primaryName && (
+                        <p className="text-sm text-restaurant-text-light dark:text-gray-400">
+                          {secondaryName}
+                        </p>
+                      )}
+
+                    </div>
+
+                    <div className="text-2xl">
+                      {getCategoryEmoji(
+                        category.icon,
+                        category.type
+                      )}
+                    </div>
 
                   </div>
 
-                  <div className="text-2xl">
-                    {getCategoryEmoji(
-                      category.icon,
-                      category.type
-                    )}
+                  {/* =================================================
+                      TYPE BADGE
+                  ================================================= */}
+
+                  <div className="mb-4">
+
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                        isDrink
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                      }`}
+                    >
+
+                      {isDrink ? (
+                        <Coffee size={14} />
+                      ) : (
+                        <Utensils size={14} />
+                      )}
+
+                      {isDrink
+                        ? (isAmharic ? 'መጠጥ' : 'Drink')
+                        : (isAmharic ? 'ምግብ' : 'Food')}
+
+                    </span>
+
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300 ml-2">
+                      #{category.displayOrder}
+                    </span>
+
                   </div>
 
-                </div>
+                  {/* =================================================
+                      DESCRIPTION
+                  ================================================= */}
 
-                {/* =================================================
-                    TYPE BADGE
-                ================================================= */}
+                  {category.description && (
+                    <p className="text-sm text-restaurant-text-light dark:text-gray-400 mb-4 line-clamp-2">
+                      {isAmharic && category.description.am
+                        ? category.description.am
+                        : category.description.en || ''}
+                    </p>
+                  )}
 
-                <div className="mb-4">
+                  {/* =================================================
+                      BOTTOM
+                  ================================================= */}
 
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                      isDrink
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-                    }`}
-                  >
+                  <div className="flex items-center justify-between pt-4 border-t border-cream-200 dark:border-slate-800">
 
-                    {isDrink ? (
-                      <Coffee size={14} />
-                    ) : (
-                      <Utensils size={14} />
-                    )}
-
-                    {isDrink
-                      ? 'Drink'
-                      : 'Food'}
-
-                  </span>
-
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300 ml-2">
-                    #{category.displayOrder}
-                  </span>
-
-                </div>
-
-                {/* =================================================
-                    DESCRIPTION
-                ================================================= */}
-
-                {category.description?.en && (
-                  <p className="text-sm text-restaurant-text-light dark:text-gray-400 mb-4 line-clamp-2">
-                    {category.description.en}
-                  </p>
-                )}
-
-                {/* =================================================
-                    BOTTOM
-                ================================================= */}
-
-                <div className="flex items-center justify-between pt-4 border-t border-cream-200 dark:border-slate-800">
-
-                  {/* VISIBILITY */}
-
-                  <button
-                    onClick={() =>
-                      handleToggleVisibility(
-                        category
-                      )
-                    }
-                    disabled={
-                      isActionLoading
-                    }
-                    className={`text-xs font-medium px-2 py-1 rounded flex items-center gap-1 disabled:opacity-50 ${
-                      category.visible
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                        : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300'
-                    }`}
-                    title={
-                      category.visible
-                        ? 'Hide category'
-                        : 'Show category'
-                    }
-                  >
-
-                    {category.visible ? (
-                      <>
-                        <Eye size={14} />
-                        Visible
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff size={14} />
-                        Hidden
-                      </>
-                    )}
-
-                  </button>
-
-                  {/* ACTIONS */}
-
-                  <div className="flex gap-2">
-
-                    {/* EDIT */}
+                    {/* VISIBILITY */}
 
                     <button
                       onClick={() =>
-                        handleEdit(
+                        handleToggleVisibility(
                           category
                         )
                       }
                       disabled={
                         isActionLoading
                       }
-                      className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
-                      title="Edit category"
+                      className={`text-xs font-medium px-2 py-1 rounded flex items-center gap-1 disabled:opacity-50 ${
+                        category.visible
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                          : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300'
+                      }`}
+                      title={
+                        category.visible
+                          ? (isAmharic ? 'ምድብ ደብቅ' : 'Hide category')
+                          : (isAmharic ? 'ምድብ አሳይ' : 'Show category')
+                      }
                     >
-                      <Edit2
-                        size={18}
-                        className="text-blue-600"
-                      />
+
+                      {category.visible ? (
+                        <>
+                          <Eye size={14} />
+                          {isAmharic ? 'ይታያል' : 'Visible'}
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff size={14} />
+                          {isAmharic ? 'ተደብቋል' : 'Hidden'}
+                        </>
+                      )}
+
                     </button>
 
-                    {/* DELETE */}
+                    {/* ACTIONS */}
 
-                    <button
-                      onClick={() =>
-                        handleDelete(
-                          category.id
-                        )
-                      }
-                      disabled={
-                        isActionLoading
-                      }
-                      className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
-                      title="Delete category"
-                    >
-                      <Trash2
-                        size={18}
-                        className="text-red-600"
-                      />
-                    </button>
+                    <div className="flex gap-2">
+
+                      {/* EDIT */}
+
+                      <button
+                        onClick={() =>
+                          handleEdit(
+                            category
+                          )
+                        }
+                        disabled={
+                          isActionLoading
+                        }
+                        className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                        title={isAmharic ? 'ምድብ አሻሽል' : 'Edit category'}
+                      >
+                        <Edit2
+                          size={18}
+                          className="text-blue-600"
+                        />
+                      </button>
+
+                      {/* DELETE */}
+
+                      <button
+                        onClick={() =>
+                          handleDelete(
+                            category.id
+                          )
+                        }
+                        disabled={
+                          isActionLoading
+                        }
+                        className="p-2 hover:bg-cream-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+                        title={isAmharic ? 'ምድብ ሰርዝ' : 'Delete category'}
+                      >
+                        <Trash2
+                          size={18}
+                          className="text-red-600"
+                        />
+                      </button>
+
+                    </div>
 
                   </div>
 
                 </div>
-
-              </div>
-            );
-          })}
-
-        </div>
-
-        {/* ===================================================
-            EMPTY STATE
-        =================================================== */}
-
-        {items.length === 0 && (
-          <div className="restaurant-card p-10 text-center">
-
-            <p className="text-gray-500 dark:text-gray-400">
-              No categories found.
-            </p>
-
-            <button
-              onClick={handleAdd}
-              className="mt-4 px-4 py-2 bg-restaurant-accent text-white rounded-lg"
-            >
-              Add Your First Category
-            </button>
+              );
+            })}
 
           </div>
         )}
@@ -806,7 +800,11 @@ export default function CategoriesPage() {
 
                 <h2 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white">
                   {isAdding
-                    ? 'Add Category'
+                    ? isAmharic
+                      ? 'አዲስ ምድብ ጨምር'
+                      : 'Add Category'
+                    : isAmharic
+                    ? 'ምድብ አሻሽል'
                     : 'Edit Category'}
                 </h2>
 
@@ -816,7 +814,7 @@ export default function CategoriesPage() {
                   }
                   disabled={saving}
                   className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50"
-                  title="Close"
+                  title={isAmharic ? 'ዝጋ' : 'Close'}
                 >
                   <X />
                 </button>
@@ -839,7 +837,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Name (English)
+                      {isAmharic ? 'ስም (እንግሊዝኛ) *' : 'Name (English) *'}
                     </span>
 
                     <input
@@ -857,7 +855,7 @@ export default function CategoriesPage() {
                           },
                         })
                       }
-                      placeholder="e.g. Breakfast"
+                      placeholder={isAmharic ? 'ምሳሌ፡ ቁርስ' : 'e.g. Breakfast'}
                       disabled={saving}
                       autoFocus
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
@@ -868,7 +866,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Name (Amharic)
+                      {isAmharic ? 'ስም (አማርኛ)' : 'Name (Amharic)'}
                     </span>
 
                     <input
@@ -887,7 +885,7 @@ export default function CategoriesPage() {
                           },
                         })
                       }
-                      placeholder="የምግብ ምድብ"
+                      placeholder={isAmharic ? 'ምሳሌ፡ ቁርስ' : 'የምግብ ምድብ'}
                       disabled={saving}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     />
@@ -903,7 +901,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Category Type
+                      {isAmharic ? 'የምድብ አይነት' : 'Category Type'}
                     </span>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -942,11 +940,11 @@ export default function CategoriesPage() {
 
                         <div>
                           <div className="font-semibold">
-                            Food
+                            {isAmharic ? 'ምግብ' : 'Food'}
                           </div>
 
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Kitchen food items
+                            {isAmharic ? 'የማብሰያ ቤት የምግብ እቃዎች' : 'Kitchen food items'}
                           </div>
                         </div>
 
@@ -986,11 +984,11 @@ export default function CategoriesPage() {
 
                         <div>
                           <div className="font-semibold">
-                            Drink
+                            {isAmharic ? 'መጠጥ' : 'Drink'}
                           </div>
 
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Drinks and beverages
+                            {isAmharic ? 'መጠጦች እና ቡናዎች' : 'Drinks and beverages'}
                           </div>
                         </div>
 
@@ -1012,7 +1010,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Description (English)
+                      {isAmharic ? 'ገለጻ (እንግሊዝኛ)' : 'Description (English)'}
                     </span>
 
                     <textarea
@@ -1034,7 +1032,7 @@ export default function CategoriesPage() {
                           },
                         })
                       }
-                      placeholder="Category description..."
+                      placeholder={isAmharic ? 'የምድብ መግለጫ በእንግሊዝኛ...' : 'Category description...'}
                       disabled={saving}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     />
@@ -1044,7 +1042,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Description (Amharic)
+                      {isAmharic ? 'ገለጻ (አማርኛ)' : 'Description (Amharic)'}
                     </span>
 
                     <textarea
@@ -1066,7 +1064,7 @@ export default function CategoriesPage() {
                           },
                         })
                       }
-                      placeholder="የምድብ መግለጫ..."
+                      placeholder={isAmharic ? 'የምድብ መግለጫ በአማርኛ...' : 'የምድብ መግለጫ...'}
                       disabled={saving}
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     />
@@ -1084,7 +1082,7 @@ export default function CategoriesPage() {
 
                   <label>
                     <span className="block mb-2 font-medium">
-                      Icon
+                      {isAmharic ? 'ምልክት' : 'Icon'}
                     </span>
 
                     <select
@@ -1102,19 +1100,19 @@ export default function CategoriesPage() {
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     >
                       <option value="Utensils">
-                        🍽️ Utensils
+                        🍽️ {isAmharic ? 'ምግብ (Utensils)' : 'Utensils'}
                       </option>
 
                       <option value="Coffee">
-                        ☕ Coffee
+                        ☕ {isAmharic ? 'ቡና / መጠጥ (Coffee)' : 'Coffee'}
                       </option>
 
                       <option value="Leaf">
-                        🌿 Leaf
+                        🌿 {isAmharic ? 'ቅጠላቅጠል (Leaf)' : 'Leaf'}
                       </option>
 
                       <option value="Users">
-                        👥 Users
+                        👥 {isAmharic ? 'ቤተሰብ / ቡድን (Users)' : 'Users'}
                       </option>
                     </select>
                   </label>
@@ -1124,10 +1122,10 @@ export default function CategoriesPage() {
                   <label>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="font-medium text-xs">
-                        Display Order / Position Index
+                        {isAmharic ? 'የማሳያ ቅደም ተከተል ቁጥር' : 'Display Order / Position Index'}
                       </span>
                       <span className="text-[10px] text-restaurant-accent font-semibold">
-                        Auto-adjusts other categories
+                        {isAmharic ? 'ሌሎችን በራስ-ሰር ያስተካክላል' : 'Auto-adjusts other categories'}
                       </span>
                     </div>
 
@@ -1154,7 +1152,9 @@ export default function CategoriesPage() {
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 dark:bg-slate-800"
                     />
                     <span className="block mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                      If you set this category to 2, the current #2 will move to #3, #3 to #4, etc.
+                      {isAmharic
+                        ? 'ይህን ምድብ በ2ኛ ደረጃ ካደረጉት፣ አሁን 2 የነበረው ወደ 3፣ 3 የነበረው ወደ 4 ይቀየራል'
+                        : 'If you set this category to 2, the current #2 will move to #3, #3 to #4, etc.'}
                     </span>
                   </label>
 
@@ -1183,7 +1183,7 @@ export default function CategoriesPage() {
                   />
 
                   <span className="font-medium">
-                    Visible on menu
+                    {isAmharic ? 'በሜኑ ላይ ለደንበኞች ይታይ' : 'Visible on menu'}
                   </span>
 
                 </label>
@@ -1205,7 +1205,7 @@ export default function CategoriesPage() {
                   disabled={saving}
                   className="px-5 py-2 rounded-lg border border-gray-300 dark:border-slate-700 disabled:opacity-50"
                 >
-                  Cancel
+                  {isAmharic ? 'ይቅር' : 'Cancel'}
                 </button>
 
                 {/* SAVE */}
@@ -1215,15 +1215,21 @@ export default function CategoriesPage() {
                     handleSave
                   }
                   disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2 bg-restaurant-accent text-white rounded-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-5 py-2 bg-restaurant-accent text-white rounded-lg disabled:opacity-50 font-bold shadow-sm"
                 >
 
                   <Save size={18} />
 
                   {saving
-                    ? 'Saving...'
+                    ? isAmharic
+                      ? 'በማስቀመጥ ላይ...'
+                      : 'Saving...'
                     : isAdding
-                    ? 'Add Category'
+                    ? isAmharic
+                      ? 'ምድብ ጨምር'
+                      : 'Add Category'
+                    : isAmharic
+                    ? 'ለውጦችን መዝግብ'
                     : 'Save Changes'}
 
                 </button>

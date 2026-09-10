@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { MenuItem, MenuCategory } from '@/lib/types';
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
 
 export default function AdminDashboard() {
+  const { isAmharic } = useAdminLanguage();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,7 +53,7 @@ export default function AdminDashboard() {
   if (!mounted) {
     return (
       <AdminLayout>
-        <div>Loading...</div>
+        <div>{isAmharic ? 'በመጫን ላይ...' : 'Loading...'}</div>
       </AdminLayout>
     );
   }
@@ -76,25 +78,25 @@ export default function AdminDashboard() {
 
   const stats = [
     {
-      label: 'Total Menu Items',
+      label: isAmharic ? 'ጠቅላላ ምግቦች' : 'Total Menu Items',
       value: totalItems,
       color:
         'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
     },
     {
-      label: 'Available Items',
+      label: isAmharic ? 'የሚገኙ ምግቦች' : 'Available Items',
       value: availableItems,
       color:
         'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300',
     },
     {
-      label: 'Sold Out',
+      label: isAmharic ? 'ያለቁ ምግቦች' : 'Sold Out',
       value: soldOutItems,
       color:
         'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300',
     },
     {
-      label: 'Categories',
+      label: isAmharic ? 'ምድቦች' : 'Categories',
       value: categories.length,
       color:
         'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300',
@@ -108,11 +110,11 @@ export default function AdminDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-serif font-bold text-restaurant-text dark:text-white">
-            Menu Report
+            {isAmharic ? 'የምግብ ዝርዝር ሪፖርት' : 'Menu Report'}
           </h1>
 
           <p className="text-restaurant-text-light dark:text-gray-400 mt-1">
-            Overview of menu items, availability and categories
+            {isAmharic ? 'የምግብ ዝርዝር፣ ተገኝነት እና የምድቦች አጠቃላይ መረጃ' : 'Overview of menu items, availability and categories'}
           </p>
         </div>
 
@@ -129,7 +131,7 @@ export default function AdminDashboard() {
         {loading ? (
           <div className="restaurant-card p-8 text-center">
             <p className="text-restaurant-text-light dark:text-gray-400">
-              Loading menu report...
+              {isAmharic ? 'የምግብ ዝርዝር ሪፖርት በመጫን ላይ...' : 'Loading menu report...'}
             </p>
           </div>
         ) : (
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
             {/* Category Overview */}
             <div>
               <h2 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white mb-4">
-                Menu Categories
+                {isAmharic ? 'የምግብ ምድቦች' : 'Menu Categories'}
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -163,6 +165,10 @@ export default function AdminDashboard() {
                   const count = menuItems.filter(
                     (item) => (item.categoryId || (item as unknown as { category_id?: string }).category_id) === category.id
                   ).length;
+
+                  const catName = isAmharic
+                    ? (category.name?.am || category.name?.en || 'ምድብ')
+                    : (category.name?.en || category.name?.am || 'Category');
 
                   return (
                     <div
@@ -172,11 +178,11 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-restaurant-text dark:text-white">
-                            {category.name.en}
+                            {catName}
                           </p>
 
                           <p className="text-sm text-restaurant-text-light dark:text-gray-400 mt-1">
-                            {count} menu item{count !== 1 ? 's' : ''}
+                            {count} {isAmharic ? 'ምግቦች' : (count !== 1 ? 'menu items' : 'menu item')}
                           </p>
                         </div>
 
@@ -193,43 +199,51 @@ export default function AdminDashboard() {
             {/* Featured Items */}
             <div>
               <h2 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white mb-4">
-                Featured Items
+                {isAmharic ? 'ተለይተው የቀረቡ ምግቦች' : 'Featured Items'}
               </h2>
 
               <div className="restaurant-card divide-y dark:divide-slate-800">
                 {featuredItems.length > 0 ? (
-                  featuredItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 flex items-center justify-between hover:bg-cream-50 dark:hover:bg-slate-800/50 transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium text-restaurant-text dark:text-white">
-                          {item.name.en}
-                        </p>
+                  featuredItems.map((item) => {
+                    const itemName = isAmharic
+                      ? (item.name?.am || item.name?.en || 'ምግብ')
+                      : (item.name?.en || item.name?.am || 'Item');
 
-                        <p className="text-sm text-restaurant-text-light dark:text-gray-400">
-                          {item.description.en?.substring(0, 60)}
-                          {item.description.en?.length > 60 ? '...' : ''}
-                        </p>
+                    const itemDesc = (isAmharic ? item.description?.am : item.description?.en) || item.description?.en || item.description?.am;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-4 flex items-center justify-between hover:bg-cream-50 dark:hover:bg-slate-800/50 transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-restaurant-text dark:text-white">
+                            {itemName}
+                          </p>
+
+                          <p className="text-sm text-restaurant-text-light dark:text-gray-400">
+                            {itemDesc?.substring(0, 60)}
+                            {(itemDesc?.length || 0) > 60 ? '...' : ''}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="font-semibold text-restaurant-accent">
+                            {item.price} {isAmharic ? 'ብር' : item.currency}
+                          </p>
+
+                          <p className="text-xs text-restaurant-text-light dark:text-gray-400">
+                            {item.available
+                              ? (isAmharic ? '✓ ይገኛል' : '✓ Available')
+                              : (isAmharic ? '✗ አልቋል' : '✗ Unavailable')}
+                          </p>
+                        </div>
                       </div>
-
-                      <div className="text-right">
-                        <p className="font-semibold text-restaurant-accent">
-                          {item.price} {item.currency}
-                        </p>
-
-                        <p className="text-xs text-restaurant-text-light dark:text-gray-400">
-                          {item.available
-                            ? '✓ Available'
-                            : '✗ Unavailable'}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="p-6 text-center text-restaurant-text-light dark:text-gray-400">
-                    No featured items
+                    {isAmharic ? 'ምንም ተለይቶ የቀረበ ምግብ የለም' : 'No featured items'}
                   </div>
                 )}
               </div>
@@ -238,7 +252,7 @@ export default function AdminDashboard() {
             {/* Recent Items */}
             <div>
               <h2 className="text-2xl font-serif font-bold text-restaurant-text dark:text-white mb-4">
-                Recent Menu Items
+                {isAmharic ? 'የቅርብ ጊዜ ምግቦች' : 'Recent Menu Items'}
               </h2>
 
               <div className="restaurant-card divide-y dark:divide-slate-800">
@@ -248,6 +262,14 @@ export default function AdminDashboard() {
                       category.id === (item.categoryId || (item as unknown as { category_id?: string }).category_id)
                   );
 
+                  const itemName = isAmharic
+                    ? (item.name?.am || item.name?.en || 'ምግብ')
+                    : (item.name?.en || item.name?.am || 'Item');
+
+                  const catName = category
+                    ? (isAmharic ? (category.name?.am || category.name?.en) : (category.name?.en || category.name?.am))
+                    : (isAmharic ? 'ያልታወቀ' : 'Unknown');
+
                   return (
                     <div
                       key={item.id}
@@ -255,24 +277,24 @@ export default function AdminDashboard() {
                     >
                       <div>
                         <p className="font-medium text-restaurant-text dark:text-white">
-                          {item.name.en}
+                          {itemName}
                         </p>
 
                         <p className="text-sm text-restaurant-text-light dark:text-gray-400">
-                          Category:{' '}
-                          {category?.name.en || 'Unknown'}
+                          {isAmharic ? 'ምድብ: ' : 'Category: '}
+                          {catName}
                         </p>
                       </div>
 
                       <div className="text-right">
                         <p className="font-semibold text-restaurant-accent">
-                          {item.price} {item.currency}
+                          {item.price} {isAmharic ? 'ብር' : item.currency}
                         </p>
 
                         <p className="text-xs text-restaurant-text-light dark:text-gray-400">
                           {item.available
-                            ? 'Available'
-                            : 'Unavailable'}
+                            ? (isAmharic ? 'ይገኛል' : 'Available')
+                            : (isAmharic ? 'አልቋል' : 'Unavailable')}
                         </p>
                       </div>
                     </div>

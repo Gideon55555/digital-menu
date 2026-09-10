@@ -53,7 +53,7 @@ export function MenuHeader({
           {/* Logo/Title */}
           <Link href="/menu" className="flex items-center gap-2 flex-shrink-0 group">
             <div className="text-2xl font-serif font-bold text-restaurant-accent group-hover:text-restaurant-accent-dark transition-colors">
-              {restaurant.name.en}
+              {currentLanguage === 'am' && restaurant.name.am ? restaurant.name.am : restaurant.name.en}
             </div>
           </Link>
 

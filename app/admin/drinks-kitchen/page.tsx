@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { supabase } from '@/lib/supabase'
 import { playNotificationSound } from '@/lib/audio'
+import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext'
 import {
-  ChefHat,
   Clock,
   RefreshCw,
   CheckCircle,
@@ -23,8 +23,6 @@ type KitchenType = 'food' | 'drinks'
 
 // Existing kitchen = FOOD (everything except categories whose type is "drinks").
 const KITCHEN_TYPE: KitchenType = 'drinks'
-const KITCHEN_TITLE = 'Drinks Kitchen'
-const KITCHEN_DESCRIPTION = 'Prepare drink orders'
 
 const ACTIVE_ORDER_STATUSES = ['confirmed', 'preparing']
 const ACTIVE_ITEM_STATUSES = ['pending', 'confirmed', 'preparing']
@@ -83,6 +81,7 @@ type Table = {
 }
 
 export default function KitchenPage() {
+  const { isAmharic } = useAdminLanguage()
   const [orders, setOrders] = useState<Order[]>([])
   const [tables, setTables] = useState<Table[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,13 +140,13 @@ export default function KitchenPage() {
     } catch (err) {
       console.error(err)
       setError(
-        err instanceof Error ? err.message : 'Failed to load kitchen orders'
+        err instanceof Error ? err.message : (isAmharic ? 'የመጠጥ ትዕዛዞችን ማግኘት አልተቻለም' : 'Failed to load drinks orders')
       )
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [orders.length])
+  }, [orders.length, isAmharic])
 
   useEffect(() => {
     loadOrders()
@@ -184,24 +183,29 @@ export default function KitchenPage() {
   }, [loadOrders])
 
   function getTableName(tableId: string | null) {
-    if (!tableId) return 'Takeaway'
+    if (!tableId) return isAmharic ? 'ፓኮ / መውሰጃ' : 'Takeaway'
 
     const table = tables.find((item) => item.id === tableId)
-    if (!table) return 'Table'
+    if (!table) return isAmharic ? 'ጠረጴዛ' : 'Table'
 
-    return table.name || `Table ${table.table_number}`
+    return table.name || (isAmharic ? `ጠረጴዛ ${table.table_number}` : `Table ${table.table_number}`)
   }
 
   function getItemName(item: OrderItem) {
+    if (typeof item.item_name === 'object' && item.item_name) {
+      return isAmharic
+        ? (item.item_name.am || item.item_name.en || 'ያልታወቀ መጠጥ')
+        : (item.item_name.en || item.item_name.am || 'Unknown Item')
+    }
     if (typeof item.item_name === 'string') return item.item_name
-    return item.item_name?.en || item.item_name?.am || 'Unknown Item'
+    return isAmharic ? 'ያልታወቀ መጠጥ' : 'Unknown Item'
   }
 
   function getOrderAge(createdAt: string) {
     const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)
-    if (minutes < 1) return 'Just now'
-    if (minutes === 1) return '1 min ago'
-    return `${minutes} mins ago`
+    if (minutes < 1) return isAmharic ? 'አሁን' : 'Just now'
+    if (minutes === 1) return isAmharic ? 'ከ1 ደቂቃ በፊት' : '1 min ago'
+    return isAmharic ? `ከ${minutes} ደቂቃ በፊት` : `${minutes} mins ago`
   }
 
   async function updateKitchenStatus(
@@ -289,8 +293,8 @@ export default function KitchenPage() {
       <AdminLayout>
         <div className="flex items-center justify-center p-12">
           <div className="text-center">
-            <ChefHat size={44} className="mx-auto mb-3 text-restaurant-accent animate-pulse" />
-            <p className="text-gray-500">Loading {KITCHEN_TITLE.toLowerCase()}...</p>
+            <Coffee size={44} className="mx-auto mb-3 text-restaurant-accent animate-pulse" />
+            <p className="text-gray-500">{isAmharic ? 'መጠጥ ማዘጋጃ በመጫን ላይ...' : 'Loading drinks kitchen...'}</p>
           </div>
         </div>
       </AdminLayout>
@@ -307,9 +311,11 @@ export default function KitchenPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-restaurant-text dark:text-white">
-                {KITCHEN_TITLE}
+                {isAmharic ? 'መጠጥ ማዘጋጃ' : 'Drinks Kitchen'}
               </h1>
-              <p className="text-sm text-gray-500">{KITCHEN_DESCRIPTION}</p>
+              <p className="text-sm text-gray-500">
+                {isAmharic ? 'የመጠጥ ትዕዛዞች ማዘጋጃ' : 'Prepare drink orders'}
+              </p>
             </div>
           </div>
 
@@ -321,16 +327,16 @@ export default function KitchenPage() {
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
                   : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
               }`}
-              title={channelConnected ? 'Realtime Channel Connected' : 'Auto-Sync Polling Active'}
+              title={channelConnected ? (isAmharic ? 'የቀጥታ መስመር ክፍት ነው' : 'Realtime Channel Connected') : (isAmharic ? 'ራስ-ማመሳሰል ነቅቷል' : 'Auto-Sync Polling Active')}
             >
               <span className={`h-2 w-2 rounded-full ${channelConnected ? 'bg-green-500 animate-ping' : 'bg-amber-500'}`} />
-              <span>{channelConnected ? 'Live Channel Open' : 'Auto-Sync Active'}</span>
+              <span>{channelConnected ? (isAmharic ? 'የቀጥታ መስመር ክፍት' : 'Live Channel Open') : (isAmharic ? 'ራስ-ማመሳሰል ነቅቷል' : 'Auto-Sync Active')}</span>
             </div>
 
             {/* NOTIFICATION BELL ICON WITH WAITING ORDERS COUNT */}
             <div className="relative inline-flex items-center gap-1.5 rounded-lg border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-restaurant-text dark:text-white shadow-sm">
               <Bell size={16} className={waitingOrders.length > 0 ? 'text-restaurant-accent animate-bounce' : 'text-gray-400'} />
-              <span>{waitingOrders.length} Waiting</span>
+              <span>{waitingOrders.length} {isAmharic ? 'የሚጠብቁ' : 'Waiting'}</span>
               {waitingOrders.length > 0 && (
                 <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
                   {waitingOrders.length}
@@ -346,10 +352,10 @@ export default function KitchenPage() {
                   ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300'
                   : 'border-gray-200 bg-white text-gray-400 dark:border-slate-800 dark:bg-slate-800'
               }`}
-              title={soundEnabled ? 'Chime sound is ON' : 'Chime sound is MUTED'}
+              title={soundEnabled ? (isAmharic ? 'የጥሪ ድምፅ በርቷል' : 'Chime sound is ON') : (isAmharic ? 'የጥሪ ድምፅ ጠፍቷል' : 'Chime sound is MUTED')}
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-              <span>{soundEnabled ? 'Chime ON' : 'Muted'}</span>
+              <span>{soundEnabled ? (isAmharic ? 'ድምፅ በርቷል' : 'Chime ON') : (isAmharic ? 'ድምፅ ጠፍቷል' : 'Muted')}</span>
             </button>
 
             {/* REFRESH / SYNC BUTTON */}
@@ -359,7 +365,7 @@ export default function KitchenPage() {
               className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-medium transition hover:border-restaurant-accent disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800"
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+              <span>{refreshing ? (isAmharic ? 'በማመሳሰል ላይ...' : 'Syncing...') : (isAmharic ? 'አድስ' : 'Sync')}</span>
             </button>
           </div>
         </div>
@@ -374,7 +380,7 @@ export default function KitchenPage() {
                 : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300'
             }`}
           >
-            <span>Waiting Orders</span>
+            <span>{isAmharic ? 'ዝግጅት የሚጠብቁ' : 'Waiting Orders'}</span>
             <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs">
               {waitingOrders.length}
             </span>
@@ -388,7 +394,7 @@ export default function KitchenPage() {
                 : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-slate-800 dark:text-gray-300'
             }`}
           >
-            <span>Preparing</span>
+            <span>{isAmharic ? 'በዝግጅት ላይ' : 'Preparing'}</span>
             <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs">
               {preparingOrders.length}
             </span>
@@ -411,38 +417,40 @@ export default function KitchenPage() {
 
         {activeView === 'waiting' ? (
           <KitchenSection
-            title="Waiting Orders"
-            description="Drink orders waiting to be prepared"
+            title={isAmharic ? 'ዝግጅት የሚጠብቁ መጠጦች' : 'Waiting Orders'}
+            description={isAmharic ? 'ዝግጅት እንዲጀመር የሚጠብቁ የመጠጥ ትዕዛዞች' : 'Drink orders waiting to be prepared'}
             count={waitingOrders.length}
             orders={waitingOrders}
-            emptyTitle={`No waiting drink orders`}
-            emptyDescription="New drink orders will appear here automatically."
+            emptyTitle={isAmharic ? 'ምንም የሚጠብቅ የመጠጥ ትዕዛዝ የለም' : 'No waiting drink orders'}
+            emptyDescription={isAmharic ? 'አዳዲስ የመጠጥ ትዕዛዞች ሲገቡ እዚህ ይታያሉ።' : 'New drink orders will appear here automatically.'}
             tableName={getTableName}
             getItemName={getItemName}
             getOrderAge={getOrderAge}
             updatingOrder={updatingOrder}
-            actionLabel="Start Preparing"
+            actionLabel={isAmharic ? 'ማዘጋጀት ጀምር' : 'Start Preparing'}
             actionIcon={<Play size={18} />}
             onAction={(id) => updateKitchenStatus(id, 'preparing')}
-            statusLabel="Waiting"
+            statusLabel={isAmharic ? 'ይጠብቃል' : 'Waiting'}
+            isAmharic={isAmharic}
             waiting
           />
         ) : (
           <KitchenSection
-            title="Preparing"
-            description="Drinks currently being prepared"
+            title={isAmharic ? 'በዝግጅት ላይ ያሉ መጠጦች' : 'Preparing'}
+            description={isAmharic ? 'አሁን በመዘጋጀት ላይ ያሉ መጠጦች' : 'Drinks currently being prepared'}
             count={preparingOrders.length}
             orders={preparingOrders}
-            emptyTitle={`Nothing is being prepared`}
-            emptyDescription="Orders will appear here when the bartender starts preparing them."
+            emptyTitle={isAmharic ? 'ምንም እየተዘጋጀ ያለ መጠጥ የለም' : 'Nothing is being prepared'}
+            emptyDescription={isAmharic ? 'ባርቴንደር መጠጥ ማዘጋጀት ሲጀምር ትዕዛዞች እዚህ ይታያሉ።' : 'Orders will appear here when the bartender starts preparing them.'}
             tableName={getTableName}
             getItemName={getItemName}
             getOrderAge={getOrderAge}
             updatingOrder={updatingOrder}
-            actionLabel="Mark Ready"
+            actionLabel={isAmharic ? 'ተዘጋጅቷል' : 'Mark Ready'}
             actionIcon={<CheckCircle size={18} />}
             onAction={(id) => updateKitchenStatus(id, 'ready')}
-            statusLabel="Preparing"
+            statusLabel={isAmharic ? 'በዝግጅት ላይ' : 'Preparing'}
+            isAmharic={isAmharic}
           />
         )}
       </div>
@@ -465,6 +473,7 @@ type KitchenSectionProps = {
   actionIcon: ReactNode
   onAction: (id: string) => void
   statusLabel: string
+  isAmharic: boolean
   waiting?: boolean
 }
 
@@ -497,6 +506,7 @@ function KitchenSection(props: KitchenSectionProps) {
               actionIcon={props.actionIcon}
               onAction={() => props.onAction(order.id)}
               statusLabel={props.statusLabel}
+              isAmharic={props.isAmharic}
             />
           ))}
         </div>
@@ -515,6 +525,7 @@ type OrderCardProps = {
   actionIcon: ReactNode
   onAction: () => void
   statusLabel: string
+  isAmharic: boolean
 }
 
 function OrderCard({
@@ -527,6 +538,7 @@ function OrderCard({
   actionIcon,
   onAction,
   statusLabel,
+  isAmharic,
 }: OrderCardProps) {
   return (
     <div className="overflow-hidden rounded-xl border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -548,7 +560,7 @@ function OrderCard({
 
         <span
           className={`rounded-full px-3 py-1 text-xs font-bold ${
-            statusLabel === 'Preparing'
+            statusLabel === 'Preparing' || statusLabel === 'በዝግጅት ላይ'
               ? 'bg-blue-100 text-blue-700'
               : 'bg-yellow-100 text-yellow-700'
           }`}
@@ -568,7 +580,11 @@ function OrderCard({
                   </span>
                   <div>
                     <p className="font-semibold text-restaurant-text dark:text-white">{getItemName(item)}</p>
-                    {item.notes && <p className="mt-1 text-sm text-orange-600">Note: {item.notes}</p>}
+                    {item.notes && (
+                      <p className="mt-1 text-sm text-orange-600">
+                        {isAmharic ? 'ማስታወሻ: ' : 'Note: '}{item.notes}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -578,7 +594,8 @@ function OrderCard({
 
         {order.notes && (
           <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-            <span className="font-semibold">Order note:</span> {order.notes}
+            <span className="font-semibold">{isAmharic ? 'የትዕዛዝ ማስታወሻ: ' : 'Order note: '}</span>
+            {order.notes}
           </div>
         )}
 
@@ -590,7 +607,7 @@ function OrderCard({
           {updating ? (
             <>
               <RefreshCw size={18} className="animate-spin" />
-              Updating...
+              {isAmharic ? 'በማስተካከል ላይ...' : 'Updating...'}
             </>
           ) : (
             <>
@@ -603,8 +620,8 @@ function OrderCard({
 
       <div className="border-t bg-gray-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Order total</span>
-          <span className="font-bold">{Number(order.total).toFixed(2)} ETB</span>
+          <span className="text-gray-500">{isAmharic ? 'ጠቅላላ ዋጋ' : 'Order total'}</span>
+          <span className="font-bold">{Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}</span>
         </div>
       </div>
     </div>
@@ -625,7 +642,7 @@ function EmptyState({
       {waiting ? (
         <Clock size={40} className="mx-auto text-gray-300" />
       ) : (
-        <ChefHat size={40} className="mx-auto text-gray-300" />
+        <Coffee size={40} className="mx-auto text-gray-300" />
       )}
       <p className="mt-3 font-semibold text-restaurant-text dark:text-white">{title}</p>
       <p className="mt-1 text-sm text-gray-500">{description}</p>
