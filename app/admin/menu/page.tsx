@@ -33,7 +33,7 @@ const MEASUREMENT_UNITS = [
   { value: 'slice', labelEn: 'Slice', labelAm: 'ቁራጭ' },
 ];
 
-export function calculateItemCost(costInfo?: ItemCostInfo | null): number {
+function calculateItemCost(costInfo?: ItemCostInfo | null): number {
   if (!costInfo) return 0;
   if (costInfo.costType === 'bought') {
     return Number(costInfo.purchaseCost) || 0;
@@ -47,7 +47,7 @@ export function calculateItemCost(costInfo?: ItemCostInfo | null): number {
   return 0;
 }
 
-export function calculateMargin(
+function calculateMargin(
   price: number,
   cost: number,
   targetMargin = 60

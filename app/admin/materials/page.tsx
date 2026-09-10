@@ -21,7 +21,7 @@ import {
   Copy,
 } from 'lucide-react'
 
-export type CafeMaterial = {
+type CafeMaterial = {
   id: string
   name: string
   category: string
