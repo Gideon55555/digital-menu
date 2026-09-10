@@ -116,6 +116,7 @@ export default function WaiterPage() {
     id: string
     name: string | null
     email: string
+    role?: string
   } | null>(null)
 
   const [loading, setLoading] = useState(true)
@@ -140,6 +141,7 @@ export default function WaiterPage() {
             id: auth.adminUser.id,
             name: auth.adminUser.name,
             email: auth.adminUser.email,
+            role: auth.adminUser.role,
           })
         }
       } catch (err) {

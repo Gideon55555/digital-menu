@@ -18,11 +18,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
-  Percent,
-  PlusCircle,
-  MinusCircle,
-  Copy,
-  Info,
 } from 'lucide-react';
 
 const MEASUREMENT_UNITS = [
@@ -76,7 +71,8 @@ export function calculateMargin(
 }
 
 export default function MenuManagementPage() {
-  const { isAmharic } = useAdminLanguage();
+  const { language } = useAdminLanguage();
+  const isAmharic = language === 'am';
 
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -86,7 +82,6 @@ export default function MenuManagementPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -326,13 +321,6 @@ export default function MenuManagementPage() {
         price: currentMarginStats.suggestedPrice,
       });
     }
-  }
-
-  function handleCopySql() {
-    const sql = `ALTER TABLE public.menu_items ADD COLUMN IF NOT EXISTS cost_info JSONB DEFAULT NULL;`;
-    navigator.clipboard.writeText(sql);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 3000);
   }
 
   async function handleSave() {

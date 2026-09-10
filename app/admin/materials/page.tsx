@@ -17,7 +17,6 @@ import {
   PlusCircle,
   MinusCircle,
   MapPin,
-  Layers,
   Sparkles,
   Copy,
 } from 'lucide-react'

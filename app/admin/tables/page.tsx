@@ -20,6 +20,7 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
+  Search,
 } from 'lucide-react'
 
 type Table = {
@@ -1357,6 +1358,8 @@ export default function TablesPage() {
               </form>
             </div>
           </div>
+        )}
+
         {/* DELETE CONFIRMATION MODAL */}
         {tableToDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
