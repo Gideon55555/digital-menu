@@ -32,9 +32,23 @@ import {
   Activity,
   Camera,
   Eye,
+  Trash2,
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  ReceiptText,
 } from 'lucide-react'
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'custom'
+
+type DailyExpense = {
+  id: string
+  description: string
+  amount: number
+  category: string
+  expense_date: string
+  created_at: string
+}
 
 type OrderItem = {
   id: string
@@ -151,9 +165,19 @@ function OrdersReportPageContent() {
   // Lightbox for payment screenshot
   const [selectedReceiptImage, setSelectedReceiptImage] = useState<string | null>(null)
 
+  // Daily Expenses (Money Out) State
+  const [expenses, setExpenses] = useState<DailyExpense[]>([])
+  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [showExpenseSidebar, setShowExpenseSidebar] = useState(false)
+  const [expenseDesc, setExpenseDesc] = useState('')
+  const [expenseAmount, setExpenseAmount] = useState('')
+  const [expenseCategory, setExpenseCategory] = useState('groceries')
+  const [addingExpense, setAddingExpense] = useState(false)
+  const [expenseError, setExpenseError] = useState('')
+
   /*
    * =========================================================
-   * LOAD REPORT
+   * LOAD REPORT & EXPENSES
    * =========================================================
    */
 
@@ -175,13 +199,14 @@ function OrdersReportPageContent() {
           if (customTo) params.set('to', customTo)
         }
 
-        const response = await fetch(`/api/reports/orders?${params.toString()}`, {
-          cache: 'no-store',
-        })
+        const [repRes, expRes] = await Promise.all([
+          fetch(`/api/reports/orders?${params.toString()}`, { cache: 'no-store' }),
+          fetch(`/api/daily-expenses?${params.toString()}`, { cache: 'no-store' }).catch(() => null),
+        ])
 
-        const result = await response.json()
+        const result = await repRes.json()
 
-        if (!response.ok || !result.success) {
+        if (!repRes.ok || !result.success) {
           throw new Error(result.error || 'Failed to load report')
         }
 
@@ -196,6 +221,14 @@ function OrdersReportPageContent() {
           }
         )
         setGraph(result.data?.graph || [])
+
+        if (expRes && expRes.ok) {
+          const expResult = await expRes.json()
+          if (expResult.success) {
+            setExpenses(expResult.data || [])
+            setTotalExpenses(expResult.total || 0)
+          }
+        }
       } catch (err) {
         console.error('Report error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load report')
@@ -210,6 +243,53 @@ function OrdersReportPageContent() {
   useEffect(() => {
     loadReport()
   }, [loadReport])
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!expenseDesc.trim() || !expenseAmount || Number(expenseAmount) <= 0) {
+      setExpenseError(language === 'am' ? 'እባክዎ ትክክለኛ መግለጫ እና የገንዘብ መጠን ያስገቡ' : 'Please enter valid description and amount')
+      return
+    }
+
+    try {
+      setAddingExpense(true)
+      setExpenseError('')
+      const res = await fetch('/api/daily-expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: expenseDesc.trim(),
+          amount: Number(expenseAmount),
+          category: expenseCategory,
+          expense_date: new Date().toISOString().slice(0, 10),
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Failed to add expense')
+      }
+      setExpenseDesc('')
+      setExpenseAmount('')
+      loadReport(true)
+    } catch (err) {
+      setExpenseError(err instanceof Error ? err.message : 'Failed to save expense')
+    } finally {
+      setAddingExpense(false)
+    }
+  }
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm(language === 'am' ? 'እርግጠኛ ነዎት ይህን ወጪ መሰረዝ ይፈልጋሉ?' : 'Are you sure you want to delete this expense?')) return
+    try {
+      const res = await fetch(`/api/daily-expenses?id=${id}`, { method: 'DELETE' })
+      const result = await res.json()
+      if (res.ok && result.success) {
+        loadReport(true)
+      }
+    } catch (err) {
+      console.error('Delete expense error:', err)
+    }
+  }
 
   /*
    * =========================================================
@@ -565,6 +645,14 @@ function OrdersReportPageContent() {
           </div>
 
           <button
+            onClick={() => setShowExpenseSidebar(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-white px-4 py-2.5 text-sm font-bold transition shadow-sm"
+          >
+            <Wallet size={16} />
+            {t.dailyPayments || (language === 'am' ? 'ዕለታዊ ወጪዎች' : 'Daily Payments')}
+          </button>
+
+          <button
             onClick={exportToCSV}
             disabled={orders.length === 0}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-bold text-stone-800 dark:text-stone-100 hover:bg-stone-50 dark:hover:bg-slate-700 disabled:opacity-40 transition shadow-sm"
@@ -677,13 +765,13 @@ function OrdersReportPageContent() {
       </div>
 
       {/* PRIMARY EXECUTIVE KPI METRICS */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/* Total Revenue */}
         <div className="restaurant-card p-5 relative overflow-hidden border-l-4 border-l-emerald-500">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                {t.totalRevenue}
+                {t.totalRevenue || (language === 'am' ? 'ጠቅላላ ገቢ' : 'Total Revenue')}
               </p>
               <h3 className="mt-2 text-2xl sm:text-3xl font-serif font-bold text-stone-900 dark:text-white tracking-tight">
                 {money(summary.totalCollected)}
@@ -700,6 +788,66 @@ function OrdersReportPageContent() {
             </div>
           </div>
         </div>
+
+        {/* Daily Money Out (Expenses) */}
+        <div
+          onClick={() => setShowExpenseSidebar(true)}
+          className="restaurant-card p-5 relative overflow-hidden border-l-4 border-l-rose-500 cursor-pointer hover:shadow-md transition"
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+                {t.dailyExpenses || (language === 'am' ? 'ዕለታዊ ወጪዎች' : 'Daily Outflow')}
+              </p>
+              <h3 className="mt-2 text-2xl sm:text-3xl font-serif font-bold text-rose-700 dark:text-rose-400 tracking-tight">
+                -{money(totalExpenses)}
+              </h3>
+              <p className="mt-1 text-xs font-medium text-rose-600/80 dark:text-rose-300 flex items-center gap-1">
+                <span>{expenses.length} {language === 'am' ? 'ወጪዎች ተመዝግበዋል' : 'records'}</span>
+                <span className="underline font-bold text-rose-700 dark:text-rose-200">({language === 'am' ? 'ዝርዝር/መመዝገቢያ' : 'Manage'})</span>
+              </p>
+            </div>
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 shadow-sm">
+              <Wallet size={24} />
+            </div>
+          </div>
+        </div>
+
+        {/* Net Profit */}
+        {(() => {
+          const profit = summary.totalCollected - totalExpenses
+          const isProfitable = profit >= 0
+          return (
+            <div className={`restaurant-card p-5 relative overflow-hidden border-l-4 ${isProfitable ? 'border-l-green-600' : 'border-l-red-600'}`}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${isProfitable ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                    {t.netProfit || (language === 'am' ? 'ተጣራይ ትርፍ' : 'Net Profit')}
+                  </p>
+                  <h3 className={`mt-2 text-2xl sm:text-3xl font-serif font-bold tracking-tight ${isProfitable ? 'text-stone-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
+                    {money(profit)}
+                  </h3>
+                  <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1">
+                    {isProfitable ? (
+                      <span className="text-green-700 dark:text-green-400 font-bold flex items-center gap-0.5">
+                        <TrendingUp size={14} /> {language === 'am' ? 'አዎንታዊ ትርፍ' : 'Profitable'}
+                      </span>
+                    ) : (
+                      <span className="text-red-600 dark:text-red-400 font-bold flex items-center gap-0.5">
+                        <TrendingDown size={14} /> {language === 'am' ? 'ኪሳራ' : 'Net Deficit'}
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isProfitable ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'} shadow-sm`}>
+                  {isProfitable ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Orders Closed */}
         <div className="restaurant-card p-5 relative overflow-hidden border-l-4 border-l-blue-500">
@@ -1653,6 +1801,179 @@ function OrdersReportPageContent() {
                 className="max-h-full max-w-full object-contain rounded-lg shadow-md"
               />
             </div>
+          </div>
+        </div>
+      )}
+      {/* DAILY PAYMENTS SIDEBAR DRAWER */}
+      {showExpenseSidebar && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs transition-opacity">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
+
+            {/* DRAWER HEADER */}
+            <div className="flex items-center justify-between border-b border-stone-200 dark:border-slate-800 p-5 bg-stone-50 dark:bg-slate-850">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                  <Wallet size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-serif font-bold text-stone-900 dark:text-white">
+                    {t.dailyPaymentsTitle || (language === 'am' ? 'ዕለታዊ ወጪዎች (የገንዘብ ወጪ)' : 'Daily Payments (Money Out)')}
+                  </h2>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    {language === 'am' ? 'ለግዢ፣ አትክልትና ሌሎች ወጪዎች' : 'Record grocery, inventory & supply costs'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowExpenseSidebar(false)}
+                className="rounded-lg p-2 text-stone-500 hover:bg-stone-200 dark:hover:bg-slate-800 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* DRAWER CONTENT */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+
+              {/* ADD EXPENSE FORM */}
+              <form onSubmit={handleAddExpense} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20 space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                  <Plus size={14} />
+                  {t.addExpense || (language === 'am' ? 'አዲስ ወጪ መመዝገቢያ' : 'Record New Expense')}
+                </h3>
+
+                {expenseError && (
+                  <p className="text-xs text-red-600 dark:text-red-400 font-semibold">{expenseError}</p>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                    {t.expenseDescription || (language === 'am' ? 'የወጪው መግለጫ (ለምሳሌ: አትክልት፣ ስጋ)' : 'Description (e.g. Vegetables, Meat)')}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder={language === 'am' ? 'የወጪ ዓይነት...' : 'e.g., Grocery purchase'}
+                    value={expenseDesc}
+                    onChange={(e) => setExpenseDesc(e.target.value)}
+                    className="w-full rounded-lg border border-stone-300 dark:border-slate-700 px-3 py-2 text-xs font-semibold dark:bg-slate-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                      {t.expenseAmount || (language === 'am' ? 'መጠን (ብር)' : 'Amount (ETB)')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      placeholder="0.00"
+                      value={expenseAmount}
+                      onChange={(e) => setExpenseAmount(e.target.value)}
+                      className="w-full rounded-lg border border-stone-300 dark:border-slate-700 px-3 py-2 text-xs font-semibold dark:bg-slate-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 mb-1">
+                      {t.expenseCategory || (language === 'am' ? 'ምድብ' : 'Category')}
+                    </label>
+                    <select
+                      value={expenseCategory}
+                      onChange={(e) => setExpenseCategory(e.target.value)}
+                      className="w-full rounded-lg border border-stone-300 dark:border-slate-700 px-3 py-2 text-xs font-semibold dark:bg-slate-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="groceries">{language === 'am' ? 'ግሮሰሪ / አትክልት' : 'Groceries / Market'}</option>
+                      <option value="meat">{language === 'am' ? 'ስጋ / ዶሮ' : 'Meat & Poultry'}</option>
+                      <option value="beverages">{language === 'am' ? 'መጠጦች' : 'Beverages'}</option>
+                      <option value="utilities">{language === 'am' ? 'መብራት / ውኃ' : 'Utilities'}</option>
+                      <option value="supplies">{language === 'am' ? 'ዕቃዎች / ጽዳት' : 'Supplies & Cleaning'}</option>
+                      <option value="other">{language === 'am' ? 'ሌሎች' : 'Other'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={addingExpense}
+                  className="w-full mt-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 text-xs transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                >
+                  {addingExpense ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {t.saveExpense || (language === 'am' ? 'ወጪ ይመዝገብ' : 'Save Expense')}
+                </button>
+              </form>
+
+              {/* EXPENSE LIST */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                    {t.expensesList || (language === 'am' ? 'የተመዘገቡ ወጪዎች' : 'Recorded Outflows')} ({expenses.length})
+                  </h4>
+                  <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                    -{money(totalExpenses)}
+                  </span>
+                </div>
+
+                {expenses.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-stone-200 dark:border-slate-800 rounded-xl">
+                    <ReceiptText size={28} className="mx-auto text-stone-300 dark:text-slate-700 mb-2" />
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      {t.noExpensesYet || (language === 'am' ? 'ለዚህ ጊዜ የተመዘገበ ወጪ የለም' : 'No expenses recorded for this timeframe.')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {expenses.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="flex items-center justify-between p-3 rounded-xl border border-stone-200 dark:border-slate-800 bg-stone-50/50 dark:bg-slate-800/50 hover:bg-stone-100 dark:hover:bg-slate-800 transition"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-stone-800 dark:text-stone-200">
+                            {exp.description}
+                          </p>
+                          <div className="flex items-center gap-2 text-[11px] text-stone-500 dark:text-stone-400">
+                            <span className="capitalize px-1.5 py-0.5 rounded bg-stone-200 dark:bg-slate-700 text-[10px] font-semibold">
+                              {exp.category}
+                            </span>
+                            <span>{exp.expense_date}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                            -{money(exp.amount)}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            className="p-1 rounded text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* DRAWER FOOTER SUMMARY */}
+            <div className="p-4 border-t border-stone-200 dark:border-slate-800 bg-stone-100 dark:bg-slate-850 flex items-center justify-between">
+              <span className="text-xs font-bold text-stone-600 dark:text-stone-400">
+                {t.totalOutflow || (language === 'am' ? 'ጠቅላላ ወጪ:' : 'Total Money Out:')}
+              </span>
+              <span className="text-base font-extrabold text-rose-600 dark:text-rose-400">
+                {money(totalExpenses)}
+              </span>
+            </div>
+
           </div>
         </div>
       )}

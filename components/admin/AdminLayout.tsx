@@ -213,7 +213,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       href: '/admin/reports/orders',
     },
     {
-      label: t.activeOrders,
+      label: language === 'am' ? 'ገንዘብ ተቀባይ' : 'Cashier',
       icon: ClipboardList,
       href: '/admin/orders',
     },

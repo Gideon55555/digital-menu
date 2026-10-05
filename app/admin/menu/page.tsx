@@ -38,13 +38,17 @@ function calculateItemCost(costInfo?: ItemCostInfo | null): number {
   if (costInfo.costType === 'bought') {
     return Number(costInfo.purchaseCost) || 0;
   }
-  if (costInfo.costType === 'made' && Array.isArray(costInfo.ingredients)) {
-    return costInfo.ingredients.reduce(
-      (acc, curr) => acc + (Number(curr.cost) || 0),
-      0
-    );
+  if (costInfo.costType === 'made') {
+    const ingSum = Array.isArray(costInfo.ingredients)
+      ? costInfo.ingredients.reduce(
+          (acc, curr) => acc + (Number(curr.cost) || 0),
+          0
+        )
+      : 0;
+    if (ingSum > 0) return ingSum;
+    return Number(costInfo.purchaseCost) || 0;
   }
-  return 0;
+  return Number(costInfo.purchaseCost) || 0;
 }
 
 function calculateMargin(
@@ -123,6 +127,37 @@ export default function MenuManagementPage() {
       return item.categoryId === filter;
     });
   }, [items, filter]);
+
+  const menuStats = useMemo(() => {
+    let totalSellingPrice = 0;
+    let totalCostToMake = 0;
+    let marginPctSum = 0;
+    let itemsWithCostCount = 0;
+
+    items.forEach((item) => {
+      const price = Number(item.price) || 0;
+      totalSellingPrice += price;
+      const cost = calculateItemCost(item.costInfo);
+      if (cost > 0) {
+        itemsWithCostCount++;
+        totalCostToMake += cost;
+      }
+      const margin = calculateMargin(price, cost);
+      marginPctSum += margin.marginPct;
+    });
+
+    const avgPrice = items.length > 0 ? totalSellingPrice / items.length : 0;
+    const avgCost = itemsWithCostCount > 0 ? totalCostToMake / itemsWithCostCount : 0;
+    const avgMarginPct = items.length > 0 ? marginPctSum / items.length : 0;
+
+    return {
+      totalItems: items.length,
+      avgPrice,
+      avgCost,
+      avgMarginPct,
+      itemsWithCostCount,
+    };
+  }, [items]);
 
   async function handleToggleAvailability(item: MenuItem) {
     try {
@@ -411,8 +446,8 @@ export default function MenuManagementPage() {
 
             <p className="text-sm text-restaurant-text-light dark:text-gray-400 mt-1">
               {isAmharic
-                ? 'ምግቦችን፣ መጠጦችን፣ የምግብ አሰራር ወጪዎችንና የትርፍ መጣኔዎችን ያስተዳድሩ'
-                : 'Manage dishes, drinks, recipe ingredient costs, and 60% profit margins'}
+                ? 'ምግቦችን፣ የመሸጫ ዋጋን፣ የማዘጋጃ ወጪዎችንና የትርፍ መጣኔዎችን ያስተዳድሩ'
+                : 'Manage dishes, selling prices, production costs, and holding profit margins'}
             </p>
           </div>
 
@@ -424,6 +459,65 @@ export default function MenuManagementPage() {
               <Plus size={18} />
               <span>{isAmharic ? 'አዲስ እቃ ጨምር' : 'Add Menu Item'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Executive Profitability Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="restaurant-card p-4 rounded-2xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">
+              {isAmharic ? 'አጠቃላይ የሜኑ እቃዎች' : 'Total Menu Items'}
+            </span>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              {menuStats.totalItems}
+            </div>
+            <span className="text-[11px] text-gray-400 mt-0.5 block">
+              {menuStats.itemsWithCostCount} {isAmharic ? 'ወጪ የተቀመጠላቸው' : 'with cost calculated'}
+            </span>
+          </div>
+
+          <div className="restaurant-card p-4 rounded-2xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">
+              {isAmharic ? 'አማካይ የመሸጫ ዋጋ' : 'Avg Selling Price'}
+            </span>
+            <div className="text-2xl font-bold text-restaurant-accent mt-1">
+              {menuStats.avgPrice.toFixed(2)} ETB
+            </div>
+            <span className="text-[11px] text-gray-400 mt-0.5 block">
+              {isAmharic ? 'በእቃ ደረጃ' : 'Per item average'}
+            </span>
+          </div>
+
+          <div className="restaurant-card p-4 rounded-2xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">
+              {isAmharic ? 'አማካይ የማዘጋጃ ወጪ' : 'Avg Cost to Make'}
+            </span>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+              {menuStats.avgCost.toFixed(2)} ETB
+            </div>
+            <span className="text-[11px] text-gray-400 mt-0.5 block">
+              {isAmharic ? 'የምግብ/የጅምላ ወጪ' : 'Production/Buying cost'}
+            </span>
+          </div>
+
+          <div className="restaurant-card p-4 rounded-2xl border border-cream-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 block">
+              {isAmharic ? 'አማካይ የትርፍ መጣኔ' : 'Avg Holding Profit %'}
+            </span>
+            <div
+              className={`text-2xl font-extrabold mt-1 ${
+                menuStats.avgMarginPct >= 50
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : menuStats.avgMarginPct >= 20
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}
+            >
+              {menuStats.avgMarginPct.toFixed(1)}%
+            </div>
+            <span className="text-[11px] text-gray-400 mt-0.5 block">
+              {isAmharic ? 'የባለቤቱ የትርፍ ድርሻ' : 'Overall profit margin'}
+            </span>
           </div>
         </div>
 
@@ -490,7 +584,7 @@ export default function MenuManagementPage() {
                 <th className="px-5 py-3.5">
                   <div className="flex items-center gap-1.5">
                     <Calculator size={14} className="text-restaurant-accent" />
-                    <span>{isAmharic ? 'ወጪና ትርፍ (ዒላማ 60%)' : 'Cost & Margin (60% Target)'}</span>
+                    <span>{isAmharic ? 'የማዘጋጃ ወጪና የትርፍ % (Holding Profit)' : 'Cost to Make & Holding Profit %'}</span>
                   </div>
                 </th>
                 <th className="px-5 py-3.5 text-center">{isAmharic ? 'ሁኔታ' : 'Status'}</th>
@@ -510,7 +604,7 @@ export default function MenuManagementPage() {
                   const category = categories.find((c) => c.id === item.categoryId);
                   const cost = calculateItemCost(item.costInfo);
                   const hasCostData = Boolean(item.costInfo && (cost > 0 || item.costInfo.ingredients?.length));
-                  const { marginPct, isTargetMet } = calculateMargin(item.price, cost);
+                  const { grossProfit, marginPct, isTargetMet } = calculateMargin(item.price, cost);
 
                   return (
                     <tr
@@ -551,32 +645,32 @@ export default function MenuManagementPage() {
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 dark:border-slate-700 text-xs font-medium text-gray-500 hover:text-restaurant-accent hover:border-restaurant-accent dark:text-gray-400 transition"
                           >
                             <Plus size={12} />
-                            <span>{isAmharic ? 'ወጪ አስላ' : 'Add Recipe/Cost'}</span>
+                            <span>{isAmharic ? 'የማዘጋጃ ወጪ አስገባ' : 'Set Cost to Make'}</span>
                           </button>
                         ) : (
                           <div className="space-y-1">
                             <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-                              <span>{isAmharic ? 'ወጪ:' : 'Cost:'}</span>
+                              <span>{isAmharic ? 'የማዘጋጃ ወጪ:' : 'Cost to Make:'}</span>
                               <span className="font-semibold text-gray-900 dark:text-gray-200">
-                                {cost} {item.currency}
+                                {cost.toFixed(2)} {item.currency}
                               </span>
-                              <span className="text-[10px] text-gray-400">
-                                ({item.costInfo?.costType === 'bought'
-                                  ? isAmharic
-                                    ? 'የተገዛ'
-                                    : 'Bought'
-                                  : isAmharic
-                                  ? `${item.costInfo?.ingredients?.length || 0} እቃዎች`
-                                  : `${item.costInfo?.ingredients?.length || 0} ing.`})
+                            </div>
+
+                            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                              <span>{isAmharic ? 'ንጹህ ትርፍ:' : 'Net Profit:'}</span>
+                              <span className={`font-bold ${grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {grossProfit >= 0 ? '+' : ''}{grossProfit.toFixed(2)} {item.currency}
                               </span>
                             </div>
 
                             <div>
                               <span
                                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                  isTargetMet
+                                  marginPct >= 50
                                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
-                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                                    : marginPct >= 20
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300'
+                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300'
                                 }`}
                                 title={
                                   isTargetMet
@@ -590,7 +684,7 @@ export default function MenuManagementPage() {
                                   <AlertTriangle size={12} />
                                 )}
                                 <span>
-                                  {marginPct.toFixed(0)}% {isAmharic ? 'ትርፍ' : 'Profit'}
+                                  {marginPct.toFixed(1)}% {isAmharic ? 'ትርፍ' : 'Profit Margin'}
                                 </span>
                               </span>
                             </div>
@@ -793,8 +887,8 @@ export default function MenuManagementPage() {
                   </label>
                 </div>
 
-                {/* Category & Selling Price */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Category, Selling Price & Cost to Make */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <label className="block">
                     <span className="block mb-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
                       {isAmharic ? 'ምድብ *' : 'Category *'}
@@ -843,7 +937,74 @@ export default function MenuManagementPage() {
                       </span>
                     </div>
                   </label>
+
+                  <label className="block">
+                    <span className="block mb-1.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+                      {isAmharic ? 'የማዘጋጃ ወጪ (Cost to Make) *' : 'Cost to Make / Production Cost *'}
+                    </span>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={
+                          editingItem.costInfo?.purchaseCost === 0
+                            ? ''
+                            : editingItem.costInfo?.purchaseCost || ''
+                        }
+                        onChange={(e) => {
+                          const c = Math.max(0, Number(e.target.value) || 0);
+                          setEditingItem({
+                            ...editingItem,
+                            costInfo: {
+                              ...(editingItem.costInfo || { costType: 'made', targetMargin: 60 }),
+                              purchaseCost: c,
+                            },
+                          });
+                        }}
+                        placeholder="0.00"
+                        className="w-full px-3.5 py-2.5 pr-14 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50/40 dark:bg-amber-950/20 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                      <span className="absolute right-3.5 top-2.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                        {editingItem.currency}
+                      </span>
+                    </div>
+                  </label>
                 </div>
+
+                {/* LIVE PROFIT & HOLDING MARGIN SUMMARY CARD */}
+                {editingItem.price > 0 && (
+                  <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/30 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400 block font-semibold">
+                        {isAmharic ? 'የእያንዳንዱ እቃ ንጹህ ትርፍ (Profit ETB):' : 'Net Profit per Item:'}
+                      </span>
+                      <span className={`text-lg font-extrabold ${currentMarginStats.grossProfit >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {currentMarginStats.grossProfit >= 0 ? '+' : ''}{currentMarginStats.grossProfit.toFixed(2)} ETB
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400 block font-semibold">
+                        {isAmharic ? 'የትርፍ መጣኔ (Holding Profit %):' : 'Holding Profit Margin:'}
+                      </span>
+                      <span className={`text-lg font-extrabold ${currentMarginStats.marginPct >= 50 ? 'text-emerald-700 dark:text-emerald-300' : currentMarginStats.marginPct >= 20 ? 'text-amber-700 dark:text-amber-300' : 'text-rose-600 dark:text-rose-400'}`}>
+                        {currentMarginStats.marginPct.toFixed(1)}% {isAmharic ? 'ትርፍ' : 'Profit'}
+                      </span>
+                    </div>
+
+                    {currentItemCost > 0 && currentMarginStats.marginPct < 60 && (
+                      <button
+                        type="button"
+                        onClick={handleApplySuggestedPrice}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <Sparkles size={14} />
+                        <span>{isAmharic ? `ለ 60% ትርፍ ዋጋ ${currentMarginStats.suggestedPrice} ETB አድርግ` : `Set Target 60% Price (${currentMarginStats.suggestedPrice} ETB)`}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* ============================================================
                     COST BREAKDOWN & 60% PROFIT MARGIN SECTION

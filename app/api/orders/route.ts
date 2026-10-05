@@ -1019,7 +1019,10 @@ export async function PUT(
       new_table_id,
       payment_method,
       amount,
+      tip_amount,
       receipt_image,
+      is_waiter,
+      user_role,
     } = body
 
     if (!id) {
@@ -1031,6 +1034,104 @@ export async function PUT(
         },
         { status: 400 }
       )
+    }
+
+    /* =====================================================
+       APPROVE WAITER PAYMENT
+    ===================================================== */
+
+    if (action === 'approve_payment') {
+      const { data: existingPmt } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('order_id', id)
+        .maybeSingle()
+
+      if (existingPmt) {
+        await supabase
+          .from('payments')
+          .update({
+            payment_status: 'CONFIRMED',
+            confirmed_at: new Date().toISOString(),
+          })
+          .eq('id', existingPmt.id)
+      }
+
+      const { data: completedOrder, error: completeError } = await supabase
+        .from('orders')
+        .update({
+          status: 'paid',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (completeError || !completedOrder) {
+        return NextResponse.json(
+          { success: false, error: completeError?.message || 'Failed to approve payment' },
+          { status: 500 }
+        )
+      }
+
+      if (completedOrder.table_id) {
+        const { data: activeOrders } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('table_id', completedOrder.table_id)
+          .not('status', 'in', '(completed,cancelled,paid)')
+
+        if (!activeOrders || activeOrders.length === 0) {
+          await supabase
+            .from('tables')
+            .update({ status: 'available' })
+            .eq('id', completedOrder.table_id)
+        }
+      }
+
+      await logOrderHistory({
+        orderId: id,
+        previousStatus: 'payment_pending',
+        newStatus: 'paid',
+        note: 'Cashier/Manager approved waiter payment submission',
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Payment approved & order closed successfully.',
+        data: completedOrder,
+      })
+    }
+
+    /* =====================================================
+       REJECT WAITER PAYMENT
+    ===================================================== */
+
+    if (action === 'reject_payment') {
+      await supabase.from('payments').delete().eq('order_id', id)
+
+      const { data: updatedOrder } = await supabase
+        .from('orders')
+        .update({
+          status: 'ready',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      await logOrderHistory({
+        orderId: id,
+        previousStatus: 'payment_pending',
+        newStatus: 'ready',
+        note: 'Cashier/Manager rejected waiter payment submission',
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Payment rejected. Order returned to ready status.',
+        data: updatedOrder,
+      })
     }
 
     /* =====================================================
@@ -1056,8 +1157,11 @@ export async function PUT(
         )
       }
 
+      const isWaiterSubmission = Boolean(is_waiter || user_role === 'waiter')
       const paymentAmount =
         Number(amount)
+      const tipAmount =
+        Number(tip_amount) || 0
 
       if (
         !Number.isFinite(
@@ -1109,12 +1213,13 @@ export async function PUT(
       }
 
       /* -----------------------------------------------
-         PAYMENT ONLY FOR READY ORDERS
+         PAYMENT ONLY FOR READY / SERVED ORDERS
       ------------------------------------------------ */
 
       if (
         order.status !== 'ready' &&
-        order.status !== 'served'
+        order.status !== 'served' &&
+        order.status !== 'payment_pending'
       ) {
         return NextResponse.json(
           {
@@ -1190,9 +1295,14 @@ export async function PUT(
         )
       }
 
+      // Clear any previous pending payment from waiter
+      await supabase.from('payments').delete().eq('order_id', id).eq('payment_status', 'PENDING')
+
       /* -----------------------------------------------
          CREATE PAYMENT RECORD
       ------------------------------------------------ */
+
+      const initialStatus = isWaiterSubmission ? 'PENDING' : 'CONFIRMED'
 
       const {
         data: payment,
@@ -1210,8 +1320,11 @@ export async function PUT(
           amount:
             paymentAmount,
 
+          tip_amount:
+            tipAmount,
+
           payment_status:
-            'CONFIRMED',
+            initialStatus,
 
           receipt_image:
             receipt_image || null,
@@ -1220,7 +1333,7 @@ export async function PUT(
             new Date().toISOString(),
 
           confirmed_at:
-            new Date().toISOString(),
+            isWaiterSubmission ? null : new Date().toISOString(),
         })
         .select()
         .single()
@@ -1246,8 +1359,10 @@ export async function PUT(
       }
 
       /* -----------------------------------------------
-         CLOSE ORDER
+         CLOSE ORDER OR MARK PENDING APPROVAL
       ------------------------------------------------ */
+
+      const targetStatus = isWaiterSubmission ? 'payment_pending' : 'paid'
 
       const {
         data:
@@ -1258,7 +1373,7 @@ export async function PUT(
         .from('orders')
         .update({
           status:
-            'paid',
+            targetStatus,
 
           updated_at:
             new Date().toISOString(),
@@ -1267,10 +1382,6 @@ export async function PUT(
           'id',
           id
         )
-        .in(
-          'status',
-          ['ready', 'served']
-        )
         .select()
         .single()
 
@@ -1278,11 +1389,6 @@ export async function PUT(
         completeError ||
         !completedOrder
       ) {
-        /*
-         * Roll back the payment if
-         * the order could not be closed.
-         */
-
         await supabase
           .from('payments')
           .delete()
@@ -1296,17 +1402,18 @@ export async function PUT(
             success: false,
             error:
               completeError?.message ||
-              'Failed to close order after payment',
+              'Failed to update order status',
           },
           { status: 500 }
         )
       }
 
       /* -----------------------------------------------
-         FREE TABLE
+         FREE TABLE (ONLY IF CONFIRMED CASHIER PAYMENT)
       ------------------------------------------------ */
 
       if (
+        !isWaiterSubmission &&
         order.table_id
       ) {
         const {
@@ -1322,7 +1429,7 @@ export async function PUT(
           .not(
             'status',
             'in',
-            '(completed,cancelled)'
+            '(completed,cancelled,paid)'
           )
 
         if (
@@ -1346,18 +1453,23 @@ export async function PUT(
       await logOrderHistory({
         orderId: id,
         previousStatus: order.status,
-        newStatus: 'paid',
-        note: `Payment of ${paymentAmount} ETB recorded via ${payment_method.toUpperCase()} and order closed`,
+        newStatus: targetStatus,
+        note: isWaiterSubmission
+          ? `Waiter submitted ${paymentAmount} ETB (${payment_method.toUpperCase()}) with tip ${tipAmount} ETB awaiting cashier approval`
+          : `Payment of ${paymentAmount} ETB recorded via ${payment_method.toUpperCase()} and order closed`,
       })
 
       return NextResponse.json({
         success: true,
-        message:
-          'Payment recorded and order closed successfully.',
+        pendingApproval: isWaiterSubmission,
+        message: isWaiterSubmission
+          ? 'Payment submitted for Cashier approval!'
+          : 'Payment recorded and order closed successfully.',
         data: {
           order:
             completedOrder,
-          payment,
+          payment:
+            payment,
         },
       })
     }

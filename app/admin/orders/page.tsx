@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { getAdminAuth } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
 import { playNotificationSound } from '@/lib/audio';
 import {
@@ -16,6 +17,8 @@ import {
   VolumeX,
   Camera,
   Upload,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { compressReceiptImage } from '@/lib/utils/image';
 import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
@@ -41,6 +44,17 @@ type OrderItem = {
   updated_at?: string;
 };
 
+type Payment = {
+  id: string;
+  order_id: string;
+  payment_method: string;
+  amount: number;
+  tip_amount?: number;
+  payment_status?: string;
+  receipt_image?: string | null;
+  uploaded_at?: string;
+};
+
 type Order = {
   id: string;
   order_number: string;
@@ -59,6 +73,7 @@ type Order = {
   created_at: string;
   updated_at: string;
   items?: OrderItem[];
+  payment?: Payment | null;
 };
 
 type Table = {
@@ -77,6 +92,19 @@ export default function OrdersPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [activeTab, setActiveTab] =
     useState<Tab>('new');
+  const [currentRole, setCurrentRole] = useState<string>('cashier');
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const auth = await getAdminAuth();
+        if (auth?.adminUser?.role) {
+          setCurrentRole(auth.adminUser.role);
+        }
+      } catch (e) {}
+    };
+    fetchRole();
+  }, []);
 
   const [loading, setLoading] =
     useState(true);
@@ -102,6 +130,8 @@ export default function OrdersPage() {
 
   const [paymentError, setPaymentError] =
     useState('');
+
+  const [tipAmount, setTipAmount] = useState('');
 
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [compressingReceipt, setCompressingReceipt] = useState(false);
@@ -407,6 +437,7 @@ export default function OrdersPage() {
       Number(order.total).toFixed(2)
     );
     setPaymentError('');
+    setTipAmount('');
   }
 
   // =========================================================
@@ -424,6 +455,7 @@ export default function OrdersPage() {
     setPaymentError('');
     setReceiptImage(null);
     setCompressingReceipt(false);
+    setTipAmount('');
   }
 
   // =========================================================
@@ -443,6 +475,8 @@ export default function OrdersPage() {
 
     const total =
       Number(paymentOrder.total);
+
+    const tip = Number(tipAmount) || 0;
 
     // -------------------------------------------------------
     // VALIDATE AMOUNT
@@ -472,6 +506,11 @@ export default function OrdersPage() {
       return;
     }
 
+    if (tip < 0) {
+      setPaymentError('Tip cannot be negative.');
+      return;
+    }
+
     try {
       setProcessingOrderId(
         paymentOrder.id
@@ -494,6 +533,9 @@ export default function OrdersPage() {
             payment_method:
               paymentMethod,
             amount,
+            tip_amount: tip,
+            is_waiter: currentRole === 'waiter',
+            user_role: currentRole,
             receipt_image:
               paymentMethod === 'cbe' || paymentMethod === 'telebirr'
                 ? receiptImage
@@ -515,17 +557,25 @@ export default function OrdersPage() {
         );
       }
 
-      // Remove the completed order.
-      setOrders(
-        (currentOrders) =>
-          currentOrders.filter(
-            (order) =>
-              order.id !==
-              paymentOrder.id
-          )
-      );
+      if (result.pendingApproval) {
+        alert(
+          isAmharic
+            ? 'ክፍያው ተመዝግቧል! ለገንዘብ ተቀባዩ/ማናጀሩ ለማረጋገጥ ተልኳል።'
+            : 'Payment submitted! Sent to Cashier / Order Manager for approval.'
+        );
+      } else {
+        setOrders(
+          (currentOrders) =>
+            currentOrders.filter(
+              (order) =>
+                order.id !==
+                paymentOrder.id
+            )
+        );
+      }
 
       closePaymentModal();
+      await loadOrders(true);
     } catch (error) {
       console.error(
         'Payment error:',
@@ -537,6 +587,72 @@ export default function OrdersPage() {
           ? error.message
           : 'Failed to record payment.'
       );
+    } finally {
+      setProcessingOrderId(null);
+    }
+  }
+
+  // =========================================================
+  // APPROVE & REJECT WAITER PAYMENTS
+  // =========================================================
+
+  async function approvePayment(orderId: string) {
+    try {
+      setProcessingOrderId(orderId);
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: orderId,
+          action: 'approve_payment',
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to approve payment');
+      }
+
+      await loadOrders(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to approve payment.');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  }
+
+  async function rejectPayment(orderId: string) {
+    const confirmed = window.confirm(
+      isAmharic
+        ? 'እርግጠኛ ነዎት ይህን ክፍያ ውድቅ ማድረግ ይፈልጋሉ?'
+        : 'Are you sure you want to reject this payment submission?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setProcessingOrderId(orderId);
+      const response = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: orderId,
+          action: 'reject_payment',
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to reject payment');
+      }
+
+      await loadOrders(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to reject payment.');
     } finally {
       setProcessingOrderId(null);
     }
@@ -556,7 +672,8 @@ export default function OrdersPage() {
   const readyOrders =
     orders.filter(
       (order) =>
-        order.status === 'ready'
+        order.status === 'ready' ||
+        order.status === 'payment_pending'
     );
 
   // Audio alerts for new orders & orders marked ready by kitchen
@@ -800,6 +917,12 @@ export default function OrdersPage() {
                   onRecordPayment={
                     openPaymentModal
                   }
+                  onApprovePayment={
+                    approvePayment
+                  }
+                  onRejectPayment={
+                    rejectPayment
+                  }
                 />
               )
             )}
@@ -827,6 +950,8 @@ export default function OrdersPage() {
           setPaymentAmount={
             setPaymentAmount
           }
+          tipAmount={tipAmount}
+          setTipAmount={setTipAmount}
           receiptImage={receiptImage}
           setReceiptImage={setReceiptImage}
           compressingReceipt={compressingReceipt}
@@ -861,6 +986,8 @@ function OrderCard({
   onConfirmAndSend,
   onCancel,
   onRecordPayment,
+  onApprovePayment,
+  onRejectPayment,
   isAmharic,
 }: {
   order: Order;
@@ -879,222 +1006,279 @@ function OrderCard({
   onRecordPayment: (
     order: Order
   ) => void;
+
+  onApprovePayment?: (
+    orderId: string
+  ) => void;
+
+  onRejectPayment?: (
+    orderId: string
+  ) => void;
   isAmharic?: boolean;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isPendingApproval = order.payment?.payment_status === 'PENDING' || order.status === 'payment_pending';
+  const tableName = formatTableName(order.table_id, tables, isAmharic);
+  const orderNumberStr = order.order_number.startsWith('order-') ? order.order_number : `#${order.order_number}`;
+
   return (
-    <div className="restaurant-card overflow-hidden">
-
-      {/* HEADER */}
-
-      <div className="p-5 border-b border-gray-200 dark:border-slate-800">
-
-        <div className="flex items-start justify-between gap-3">
-
-          <div>
-
-            <p className="text-xs uppercase tracking-wide text-gray-400">
-              {isAmharic ? 'ትዕዛዝ' : 'Order'}
-            </p>
-
-            <h2 className="text-2xl font-bold text-restaurant-text dark:text-white">
-              {order.order_number.startsWith('order-')
-                ? order.order_number
-                : `#${order.order_number}`}
-            </h2>
-
-          </div>
-
-          {activeTab === 'new' ? (
-
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-xs font-semibold">
-
-              <Clock size={13} />
-
-              {isAmharic ? 'አዲስ' : 'New'}
-
-            </span>
-
-          ) : (
-
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-semibold">
-
-              <PackageCheck size={13} />
-
-              {isAmharic ? 'ተዘጋጅቷል' : 'Ready'}
-
-            </span>
-
-          )}
-
-        </div>
-
-        {/* TABLE */}
-
-        <div className="mt-3">
-
-          <p className="text-xs text-gray-400">
-            {isAmharic ? 'ጠረጴዛ' : 'Table'}
-          </p>
-
-          <p className="font-semibold text-restaurant-text dark:text-white">
-            {formatTableName(
-              order.table_id,
-              tables,
-              isAmharic
-            )}
-          </p>
-
-        </div>
-
-        {/* TIME */}
-
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          {formatTime(
-            order.created_at
-          )}
-        </p>
-
-      </div>
-
-      {/* ITEMS */}
-
-      <div className="p-5">
-
-        <p className="text-xs uppercase tracking-wide font-semibold text-gray-400 mb-3">
-          {isAmharic ? 'የታዘዙ ምግቦች' : 'Items'}
-        </p>
-
-        {!order.items ||
-        order.items.length === 0 ? (
-
-          <div className="py-5 text-center text-sm text-red-500">
-            {isAmharic ? 'ምንም እቃ የለም።' : 'No items in this order.'}
-          </div>
-
-        ) : (
-
-          <div className="space-y-3">
-
-            {order.items.map(
-              (item) => (
-                <OrderItemRow
-                  key={item.id}
-                  item={item}
-                  isAmharic={isAmharic}
-                />
-              )
-            )}
-
-          </div>
-
-        )}
-
-        {/* NOTE */}
-
-        {order.notes && (
-          <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
-
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-              {isAmharic ? 'ማስታወሻ' : 'Order note'}
-            </p>
-
-            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
-              {order.notes}
-            </p>
-
-          </div>
-        )}
-
-      </div>
-
-      {/* TOTAL */}
-
-      <div className="px-5 py-4 border-t border-gray-200 dark:border-slate-800">
-
-        <div className="flex items-center justify-between">
-
-          <span className="text-sm text-gray-500">
-            {isAmharic ? 'ጠቅላላ ድምር' : 'Total'}
-          </span>
-
-          <span className="text-xl font-bold text-restaurant-text dark:text-white">
-            {Number(
-              order.total
-            ).toFixed(2)}{' '}
-            {isAmharic ? 'ብር' : 'ETB'}
-          </span>
-
-        </div>
-
-      </div>
-
-      {/* ACTIONS */}
-
-      <div className="p-5 border-t border-gray-200 dark:border-slate-800">
-
-        {activeTab === 'new' ? (
-
-          <div className="flex gap-2">
-
-            <button
-              onClick={() =>
-                onConfirmAndSend(
-                  order.id
-                )
-              }
-              disabled={processing}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-50"
-            >
-
-              <Check size={18} />
-
-              {processing
-                ? isAmharic
-                  ? 'በመላክ ላይ...'
-                  : 'Sending...'
-                : isAmharic
-                ? 'አረጋግጥና ላክ'
-                : 'Confirm & Send'}
-
-            </button>
-
-            <button
-              onClick={() =>
-                onCancel(
-                  order.id
-                )
-              }
-              disabled={processing}
-              title={isAmharic ? 'ትዕዛዝ ሰርዝ' : 'Cancel order'}
-              className="px-4 py-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 disabled:opacity-50"
-            >
-
-              <X size={18} />
-
-            </button>
-
-          </div>
-
-        ) : (
-
-          <button
-            onClick={() =>
-              onRecordPayment(order)
-            }
-            disabled={processing}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-restaurant-accent text-white font-semibold hover:bg-restaurant-accent-dark disabled:opacity-50"
+    <div className={`restaurant-card overflow-hidden transition-all shadow-xs ${isPendingApproval ? 'ring-2 ring-amber-400 dark:ring-amber-600' : ''}`}>
+
+      {/* ACCORDION HEADER BAR (Always Visible) */}
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="p-4 bg-white dark:bg-slate-900 hover:bg-cream-50/70 dark:hover:bg-slate-800/60 cursor-pointer flex items-center justify-between gap-3 border-b border-cream-200 dark:border-slate-800 transition select-none"
+      >
+        <div className="flex items-center gap-3">
+          <button 
+            type="button"
+            className="p-1 rounded-lg text-gray-400 hover:text-restaurant-accent hover:bg-cream-100 dark:hover:bg-slate-800 transition"
           >
-
-            <CreditCard size={18} />
-
-            {isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}
-
+            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </button>
 
-        )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-extrabold text-restaurant-text dark:text-white">
+                {orderNumberStr}
+              </span>
 
+              {activeTab === 'new' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 text-[11px] font-bold">
+                  <Clock size={11} />
+                  {isAmharic ? 'አዲስ' : 'New'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold">
+                  <PackageCheck size={11} />
+                  {isAmharic ? 'ተዘጋጅቷል' : 'Ready'}
+                </span>
+              )}
+
+              {isPendingApproval && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[11px] font-bold animate-pulse">
+                  {isAmharic ? 'ማረጋገጫ' : 'Approval'}
+                </span>
+              )}
+            </div>
+
+            <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-0.5 flex items-center gap-2">
+              <span>{isAmharic ? 'ጠረጴዛ:' : 'Table:'} <strong className="text-gray-900 dark:text-white">{tableName}</strong></span>
+              <span>•</span>
+              <span className="text-gray-400">{(order.items || []).length} {isAmharic ? 'እቃዎች' : 'items'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <span className="text-xs text-gray-400 block">{isAmharic ? 'ጠቅላላ' : 'Total'}</span>
+            <span className="text-base font-extrabold text-restaurant-accent">
+              {Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="text-xs font-bold text-gray-500 hover:text-restaurant-accent px-2 py-1 rounded-lg border border-cream-200 dark:border-slate-800 hidden sm:block"
+          >
+            {isExpanded ? (isAmharic ? 'ዘጋ' : 'Hide') : (isAmharic ? 'ዝርዝር' : 'Details')}
+          </button>
+        </div>
       </div>
 
+      {/* QUICK ACTIONS BAR (Visible when collapsed) */}
+      {!isExpanded && (
+        <div className="p-3 bg-cream-50/50 dark:bg-slate-850 flex items-center justify-between gap-2 border-b border-cream-100 dark:border-slate-800">
+          <span className="text-xs text-gray-400 px-1">
+            {formatTime(order.created_at)}
+          </span>
+
+          <div className="flex items-center gap-2">
+            {isPendingApproval ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onApprovePayment) onApprovePayment(order.id);
+                }}
+                disabled={processing}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{isAmharic ? 'አጽድቅ' : 'Approve'}</span>
+              </button>
+            ) : activeTab === 'new' ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onConfirmAndSend(order.id);
+                }}
+                disabled={processing}
+                className="px-3.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{isAmharic ? 'አረጋግጥና ላክ' : 'Confirm & Send'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRecordPayment(order);
+                }}
+                disabled={processing}
+                className="px-3.5 py-1.5 rounded-lg bg-restaurant-accent hover:bg-restaurant-accent-dark text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
+              >
+                <CreditCard size={14} />
+                <span>{isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* EXPANDABLE ACCORDION CONTENT */}
+      {isExpanded && (
+        <div className="space-y-4 p-5 bg-white dark:bg-slate-900 border-t border-cream-100 dark:border-slate-800">
+          {/* PENDING WAITER PAYMENT APPROVAL BANNER */}
+          {isPendingApproval && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                  <Clock size={14} className="text-amber-600 animate-pulse" />
+                  {isAmharic ? 'በአስተናጋጅ ተልኳል - ማረጋገጫ ይጠብቃል' : 'Submitted by Waiter - Pending Approval'}
+                </span>
+                {order.payment?.payment_method && (
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 uppercase">
+                    {order.payment.payment_method}
+                  </span>
+                )}
+              </div>
+
+              {order.payment?.receipt_image && (
+                <div className="relative h-32 w-full rounded-lg overflow-hidden border border-amber-300 dark:border-amber-800 bg-black/5 dark:bg-black/40 flex items-center justify-center p-1">
+                  <img
+                    src={order.payment.receipt_image}
+                    alt="Payment receipt proof"
+                    className="max-h-full max-w-full object-contain rounded"
+                  />
+                </div>
+              )}
+
+              {Number(order.payment?.tip_amount || 0) > 0 && (
+                <div className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                  <span>{isAmharic ? 'የተሰጠ ጉርሻ (ቲፕ):' : 'Waiter Tip:'}</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-300">+{Number(order.payment?.tip_amount).toFixed(2)} ETB</span>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => onApprovePayment && onApprovePayment(order.id)}
+                  disabled={processing}
+                  className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  <Check size={15} />
+                  {isAmharic ? 'አጽድቅና ጨርስ' : 'Approve & Close'}
+                </button>
+
+                <button
+                  onClick={() => onRejectPayment && onRejectPayment(order.id)}
+                  disabled={processing}
+                  className="py-2 px-3 rounded-lg border border-red-300 hover:bg-red-50 text-red-700 dark:border-red-900 dark:hover:bg-red-950/40 text-xs font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
+                >
+                  <X size={15} />
+                  {isAmharic ? 'ውድቅ አድርግ' : 'Reject'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ORDER ITEMS TABLE */}
+          <div>
+            <p className="text-xs uppercase tracking-wide font-semibold text-gray-400 mb-2">
+              {isAmharic ? 'የታዘዙ ምግቦች ዝርዝር' : 'Ordered Items'}
+            </p>
+
+            {!order.items || order.items.length === 0 ? (
+              <div className="py-4 text-center text-xs text-red-500">
+                {isAmharic ? 'ምንም እቃ የለም።' : 'No items in this order.'}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {order.items.map((item) => (
+                  <OrderItemRow
+                    key={item.id}
+                    item={item}
+                    isAmharic={isAmharic}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* NOTE */}
+          {order.notes && (
+            <div className="p-3 rounded-xl bg-cream-50 dark:bg-slate-800 border border-cream-200 dark:border-slate-700">
+              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                {isAmharic ? 'ማስታወሻ' : 'Order Note'}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-700 dark:text-gray-200">
+                {order.notes}
+              </p>
+            </div>
+          )}
+
+          {/* TIME & ID SUMMARY */}
+          <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-cream-100 dark:border-slate-800">
+            <span>{isAmharic ? 'የተመዘገበበት ሰዓት:' : 'Time:'} {formatTime(order.created_at)}</span>
+            <span>ID: {order.id.slice(0, 8)}...</span>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
+            {activeTab === 'new' ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onConfirmAndSend(order.id)}
+                  disabled={processing}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-50 transition"
+                >
+                  <Check size={16} />
+                  {processing
+                    ? isAmharic
+                      ? 'በመላክ ላይ...'
+                      : 'Sending...'
+                    : isAmharic
+                    ? 'አረጋግጥና ላክ'
+                    : 'Confirm & Send'}
+                </button>
+
+                <button
+                  onClick={() => onCancel(order.id)}
+                  disabled={processing}
+                  title={isAmharic ? 'ትዕዛዝ ሰርዝ' : 'Cancel order'}
+                  className="px-3.5 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 disabled:opacity-50 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => onRecordPayment(order)}
+                disabled={processing}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-restaurant-accent text-white text-xs font-bold hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
+              >
+                <CreditCard size={16} />
+                {isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1175,6 +1359,8 @@ function PaymentModal({
   setPaymentMethod,
   paymentAmount,
   setPaymentAmount,
+  tipAmount,
+  setTipAmount,
   receiptImage,
   setReceiptImage,
   compressingReceipt,
@@ -1195,6 +1381,12 @@ function PaymentModal({
   paymentAmount: string;
 
   setPaymentAmount: (
+    amount: string
+  ) => void;
+
+  tipAmount: string;
+
+  setTipAmount: (
     amount: string
   ) => void;
 
@@ -1237,6 +1429,10 @@ function PaymentModal({
     }
   };
 
+  const parsedOrderTotal = Number(order.total) || 0;
+  const parsedTip = Number(tipAmount) || 0;
+  const grandTotal = parsedOrderTotal + parsedTip;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
 
@@ -1274,24 +1470,36 @@ function PaymentModal({
 
         <div className="p-5 space-y-5">
 
-          {/* TOTAL */}
+          {/* TOTAL & GRAND TOTAL */}
 
-          <div className="rounded-xl bg-gray-50 p-4 dark:bg-slate-800">
+          <div className="rounded-xl bg-gray-50 p-4 dark:bg-slate-800 space-y-2">
 
-            <p className="text-sm text-gray-500">
-              {language === 'am' ? 'የሚከፈል ጠቅላላ' : 'Amount to pay'}
-            </p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">{language === 'am' ? 'የዕቃው ዋጋ' : 'Order Total'}:</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">
+                {parsedOrderTotal.toFixed(2)} {language === 'am' ? 'ብር' : 'ETB'}
+              </span>
+            </div>
 
-            <p className="mt-1 text-3xl font-bold text-restaurant-text dark:text-white">
-              {Number(
-                order.total
-              ).toFixed(2)}{' '}
-              {language === 'am' ? 'ብር' : 'ETB'}
-            </p>
+            {parsedTip > 0 && (
+              <div className="flex items-center justify-between text-sm text-amber-600 dark:text-amber-400 font-medium">
+                <span>{t.tipAmount || (language === 'am' ? 'ጉርሻ (ቲፕ)' : 'Tip Amount')}:</span>
+                <span>+{parsedTip.toFixed(2)} {language === 'am' ? 'ብር' : 'ETB'}</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-gray-200 dark:border-slate-700 flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                {t.grandTotal || (language === 'am' ? 'ጠቅላላ ክፍያ' : 'Grand Total')}:
+              </span>
+              <span className="text-2xl font-extrabold text-restaurant-text dark:text-white">
+                {grandTotal.toFixed(2)} {language === 'am' ? 'ብር' : 'ETB'}
+              </span>
+            </div>
 
           </div>
 
-          {/* AMOUNT */}
+          {/* AMOUNT PAID */}
 
           <div>
 
@@ -1319,6 +1527,42 @@ function PaymentModal({
               </span>
 
             </div>
+
+          </div>
+
+          {/* TIP FIELD */}
+
+          <div>
+
+            <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-gray-200">
+              {t.tipAmount || (language === 'am' ? 'ጉርሻ (ቲፕ) - አማራጭ' : 'Tip Amount (Optional)')}
+            </label>
+
+            <div className="relative">
+
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={tipAmount}
+                onChange={(event) =>
+                  setTipAmount(
+                    event.target.value
+                  )
+                }
+                className="w-full rounded-lg border border-amber-300 bg-amber-50/30 px-4 py-3 pr-16 text-lg font-semibold outline-none focus:border-amber-500 dark:border-amber-700/50 dark:bg-amber-950/20 dark:text-white"
+              />
+
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-amber-600 dark:text-amber-400">
+                {language === 'am' ? 'ብር' : 'ETB'}
+              </span>
+
+            </div>
+
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              {language === 'am' ? 'ለአስተናጋጁ ወይም ለካሸሩ የተሰጠ ተጨማሪ ጉርሻ' : 'Cashier or waiter tip given by customer'}
+            </p>
 
           </div>
 
