@@ -29,6 +29,7 @@ import {
   EyeOff,
   Boxes,
   ShoppingCart,
+  Receipt,
 } from 'lucide-react';
 import { getAdminAccessToken, getAdminAuth, normalizeAdminRole, signOutAdmin } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
@@ -213,6 +214,11 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       href: '/admin/reports/orders',
     },
     {
+      label: language === 'am' ? 'ዕለታዊ ወጪ' : 'Daily Cost',
+      icon: Receipt,
+      href: '/admin/daily-expenses',
+    },
+    {
       label: language === 'am' ? 'ገንዘብ ተቀባይ' : 'Cashier',
       icon: ClipboardList,
       href: '/admin/orders',
@@ -290,6 +296,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         '/order',
         '/admin/reports/orders',
         '/admin/tables',
+        '/admin/daily-expenses',
       ].includes(item.href);
     }
 
@@ -326,7 +333,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
     }
 
     if (role === 'cashier' || role === 'order_manager') {
-      return ['/admin/orders', '/admin/reports/orders', '/admin/tables', '/order'];
+      return ['/admin/orders', '/admin/reports/orders', '/admin/tables', '/order', '/admin/daily-expenses'];
     }
 
     if (role === 'kitchen') {

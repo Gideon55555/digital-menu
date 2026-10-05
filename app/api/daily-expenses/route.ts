@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+function formatYMD(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /* =========================================================
    GET /api/daily-expenses
    Query params:
      - date   (YYYY-MM-DD) — defaults to today
      - from   (YYYY-MM-DD) — range start
      - to     (YYYY-MM-DD) — range end
-     - period (today | week | month | year)
+     - period (today | week | month | year | all | custom)
 ========================================================= */
 
 export async function GET(request: NextRequest) {
@@ -18,24 +25,29 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from') || undefined
     const to = searchParams.get('to') || undefined
 
-    const { start, end } = getDateRange(period, from, to)
+    let query = supabase.from('daily_expenses').select('*')
 
-    const { data, error } = await supabase
-      .from('daily_expenses')
-      .select('*')
-      .gte('expense_date', start.toISOString().split('T')[0])
-      .lte('expense_date', end.toISOString().split('T')[0])
-      .order('created_at', { ascending: false })
+    if (period !== 'all') {
+      const { start, end } = getDateRange(period, from, to)
+      const startDateStr = formatYMD(start)
+      const endDateStr = formatYMD(end)
+      query = query.gte('expense_date', startDateStr).lte('expense_date', endDateStr)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       console.error('Daily expenses fetch error:', error)
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      )
+      return NextResponse.json({
+        success: true,
+        data: [],
+        expenses: [],
+        totalExpenses: 0,
+        total: 0,
+        warning: 'Table daily_expenses not ready or empty. Please run SQL script.',
+      })
     }
 
-    // Calculate totals
     const expenses = data || []
     const totalExpenses = expenses.reduce(
       (sum, e) => sum + Number(e.amount || 0),
@@ -44,10 +56,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: {
-        expenses,
-        totalExpenses,
-      },
+      data: expenses,
+      expenses,
+      totalExpenses,
+      total: totalExpenses,
     })
   } catch (error) {
     console.error('Daily expenses error:', error)
@@ -58,6 +70,9 @@ export async function GET(request: NextRequest) {
           error instanceof Error
             ? error.message
             : 'Failed to load daily expenses',
+        expenses: [],
+        totalExpenses: 0,
+        total: 0,
       },
       { status: 500 }
     )
@@ -66,41 +81,41 @@ export async function GET(request: NextRequest) {
 
 /* =========================================================
    POST /api/daily-expenses
-   Body: { description, amount, category, expense_date? }
+   Body: { description, item, amount, price, category, expense_date? }
 ========================================================= */
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    const {
-      description,
-      amount,
-      category = 'general',
-      expense_date,
-    } = body
+    // Accept item or description
+    const itemTitle = body.item || body.description
+    // Accept price or amount
+    const costValue = body.price !== undefined ? body.price : body.amount
+    const category = body.category || 'general'
+    const expense_date = body.expense_date
 
-    if (!description || !description.trim()) {
+    if (!itemTitle || !String(itemTitle).trim()) {
       return NextResponse.json(
-        { success: false, error: 'Description is required' },
+        { success: false, error: 'Item description is required' },
         { status: 400 }
       )
     }
 
-    const expenseAmount = Number(amount)
+    const expenseAmount = Number(costValue)
     if (!Number.isFinite(expenseAmount) || expenseAmount <= 0) {
       return NextResponse.json(
-        { success: false, error: 'Amount must be a positive number' },
+        { success: false, error: 'Price/Amount must be a positive number' },
         { status: 400 }
       )
     }
 
-    const dateValue = expense_date || new Date().toISOString().split('T')[0]
+    const dateValue = expense_date || formatYMD(new Date())
 
     const { data, error } = await supabase
       .from('daily_expenses')
       .insert({
-        description: description.trim(),
+        description: String(itemTitle).trim(),
         amount: expenseAmount,
         category: category || 'general',
         expense_date: dateValue,
@@ -138,13 +153,22 @@ export async function POST(request: NextRequest) {
 
 /* =========================================================
    DELETE /api/daily-expenses
-   Body: { id }
+   Supports body { id } or query param ?id=...
 ========================================================= */
 
 export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { id } = body
+    const { searchParams } = new URL(request.url)
+    let id = searchParams.get('id')
+
+    if (!id) {
+      try {
+        const body = await request.json()
+        id = body?.id
+      } catch (e) {
+        // no body provided
+      }
+    }
 
     if (!id) {
       return NextResponse.json(

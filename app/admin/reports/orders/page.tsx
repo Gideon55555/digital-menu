@@ -225,8 +225,14 @@ function OrdersReportPageContent() {
         if (expRes && expRes.ok) {
           const expResult = await expRes.json()
           if (expResult.success) {
-            setExpenses(expResult.data || [])
-            setTotalExpenses(expResult.total || 0)
+            const list = Array.isArray(expResult.expenses)
+              ? expResult.expenses
+              : Array.isArray(expResult.data)
+              ? expResult.data
+              : expResult.data?.expenses || []
+            const tot = expResult.totalExpenses ?? expResult.total ?? expResult.data?.totalExpenses ?? 0
+            setExpenses(list)
+            setTotalExpenses(tot)
           }
         }
       } catch (err) {
