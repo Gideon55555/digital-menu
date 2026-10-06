@@ -554,25 +554,30 @@ export default function DailyExpensesPage() {
             </div>
 
             {/* Timeframe Filter Tabs */}
-            <div className="flex items-center gap-1 bg-stone-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto">
+            <div className="flex flex-wrap items-center gap-1 bg-stone-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto">
               {(
                 [
-                  { id: 'today', en: 'Today', am: 'ዛሬ' },
-                  { id: 'week', en: 'This Week', am: 'በዚህ ሳምንት' },
-                  { id: 'month', en: 'This Month', am: 'በዚህ ወር' },
-                  { id: 'all', en: 'All Time', am: 'ሁሉም' },
+                  { id: 'today', en: 'Today', am: 'ዛሬ', total: todayTotal },
+                  { id: 'week', en: 'This Week', am: 'በዚህ ሳምንት', total: weekTotal },
+                  { id: 'month', en: 'This Month', am: 'በዚህ ወር', total: monthTotal },
+                  { id: 'all', en: 'All Time', am: 'ሁሉም', total: null },
                 ] as const
               ).map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition flex items-center gap-1.5 ${
                     activeTab === tab.id
                       ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm'
                       : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white'
                   }`}
                 >
-                  {isAmharic ? tab.am : tab.en}
+                  <span>{isAmharic ? tab.am : tab.en}</span>
+                  {tab.total !== null && tab.total > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300">
+                      {money(tab.total)}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -585,14 +590,55 @@ export default function DailyExpensesPage() {
               {isAmharic ? 'ወጪዎችን በመጫን ላይ...' : 'Loading daily expenses...'}
             </div>
           ) : expenses.length === 0 ? (
-            <div className="py-12 text-center text-stone-400 dark:text-stone-500 text-sm">
-              <Receipt className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="font-semibold text-stone-600 dark:text-stone-400">
-                {isAmharic ? 'በዚህ ጊዜ ውስጥ ምንም የተመዘገበ ወጪ የለም' : 'No expenses recorded for this timeframe'}
-              </p>
-              <p className="text-xs text-stone-400 mt-1">
-                {isAmharic ? 'ከላይ ያለውን ቅጽ በመጠቀም አዲስ ወጪ ያስገቡ' : 'Use the form above to add an item and price.'}
-              </p>
+            <div className="py-12 text-center text-stone-400 dark:text-stone-500 text-sm space-y-4">
+              <Receipt className="h-10 w-10 mx-auto opacity-30" />
+              <div>
+                <p className="font-semibold text-stone-600 dark:text-stone-400">
+                  {isAmharic
+                    ? activeTab === 'today'
+                      ? 'ለዛሬ እስካሁን ምንም የተመዘገበ ወጪ የለም'
+                      : 'በዚህ ጊዜ ውስጥ ምንም የተመዘገበ ወጪ የለም'
+                    : activeTab === 'today'
+                    ? 'No expenses recorded specifically for TODAY'
+                    : 'No expenses recorded for this timeframe'}
+                </p>
+                <p className="text-xs text-stone-400 mt-1">
+                  {isAmharic
+                    ? 'ከላይ ያለውን ቅጽ በመጠቀም አዲስ ወጪ ያስገቡ'
+                    : 'Use the form above to add a new daily cost item.'}
+                </p>
+              </div>
+
+              {/* Notice when Today is selected & 0 items, but Week/Month has expenses */}
+              {activeTab === 'today' && (weekTotal > 0 || monthTotal > 0) && (
+                <div className="max-w-md mx-auto p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs text-center space-y-3 shadow-sm">
+                  <div className="flex items-center justify-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{isAmharic ? 'ያለፉ ወጪዎች ተገኝተዋል!' : 'Past Expenses Recorded!'}</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    {isAmharic
+                      ? `ለዛሬ ምንም ወጪ አልተመዘገበም፤ ነገር ግን በዚህ ሳምንት/ወር ${money(weekTotal || monthTotal)} የተመዘገበ ወጪ አለ።`
+                      : `You have ${money(weekTotal || monthTotal)} recorded for earlier this week/month. Switch tabs above to view or edit them.`}
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2 pt-1">
+                    {weekTotal > 0 && (
+                      <button
+                        onClick={() => setActiveTab('week')}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition shadow-sm"
+                      >
+                        {isAmharic ? `የዚህ ሳምንት ወጪዎችን እይ (${money(weekTotal)})` : `Switch to 'This Week' (${money(weekTotal)})`}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setActiveTab('all')}
+                      className="px-3 py-1.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 font-bold text-xs text-stone-700 dark:text-stone-300 hover:bg-amber-100/50 transition"
+                    >
+                      {isAmharic ? 'ሁሉንም ወጪዎች እይ' : 'View All Time'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

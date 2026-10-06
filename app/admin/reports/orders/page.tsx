@@ -126,6 +126,13 @@ type GraphPoint = {
   sortKey?: number
 }
 
+function getLocalDateString(d: Date = new Date()): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export default function OrdersReportPage() {
   return (
     <AdminLayout>
@@ -286,13 +293,13 @@ function OrdersReportPageContent() {
             description: expenseDesc.trim(),
             amount: Number(expenseAmount),
             category: expenseCategory,
-            expense_date: editingExpense!.expense_date || new Date().toISOString().slice(0, 10),
+            expense_date: editingExpense!.expense_date || getLocalDateString(),
           }
         : {
             description: expenseDesc.trim(),
             amount: Number(expenseAmount),
             category: expenseCategory,
-            expense_date: new Date().toISOString().slice(0, 10),
+            expense_date: getLocalDateString(),
           }
 
       const res = await fetch(url, {
@@ -1991,11 +1998,18 @@ function OrdersReportPageContent() {
                 </div>
 
                 {expenses.length === 0 ? (
-                  <div className="p-8 text-center border border-dashed border-stone-200 dark:border-slate-800 rounded-xl">
-                    <ReceiptText size={28} className="mx-auto text-stone-300 dark:text-slate-700 mb-2" />
-                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="p-6 text-center border border-dashed border-stone-200 dark:border-slate-800 rounded-xl space-y-2">
+                    <ReceiptText size={28} className="mx-auto text-stone-300 dark:text-slate-700" />
+                    <p className="text-xs font-semibold text-stone-600 dark:text-stone-400">
                       {t.noExpensesYet || (language === 'am' ? 'ለዚህ ጊዜ የተመዘገበ ወጪ የለም' : 'No expenses recorded for this timeframe.')}
                     </p>
+                    {period === 'today' && (
+                      <div className="mt-2 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 p-3 rounded-lg border border-amber-200 dark:border-amber-800 text-left leading-relaxed">
+                        💡 {language === 'am'
+                          ? 'የዛሬ የተመዘገበ ወጪ የለም። የዚህን ሳምንት ወይም የወር ወጪዎችን ለማየት ከላይ ያለውን የጊዜ መረጣ "This Week" ወይም "This Month" ያድርጉ።'
+                          : 'No expenses logged specifically for TODAY. To see expenses logged earlier this week/month, switch the Report timeframe tab at the top to "This Week" or "This Month".'}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
