@@ -9,6 +9,7 @@ import {
   Bell,
   RefreshCw,
   Check,
+  CheckCircle2,
   X,
   Clock,
   PackageCheck,
@@ -86,7 +87,7 @@ type Table = {
   name?: string | null;
 };
 
-type Tab = 'new' | 'ready';
+type Tab = 'new' | 'ready' | 'payment_confirmation';
 
 type PaymentMethod = 'cash' | 'cbe' | 'telebirr';
 
@@ -145,6 +146,7 @@ export default function OrdersPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const prevReadyCount = useRef<number>(-1);
   const prevNewCount = useRef<number>(-1);
+  const prevPendingConfCount = useRef<number>(-1);
 
   // =========================================================
   // LOAD ORDERS
@@ -673,14 +675,20 @@ export default function OrdersPage() {
   const readyOrders =
     orders.filter(
       (order) =>
-        order.status === 'ready' ||
+        order.status === 'ready'
+    );
+
+  const pendingConfirmationOrders =
+    orders.filter(
+      (order) =>
         order.status === 'payment_pending'
     );
 
-  // Audio alerts for new orders & orders marked ready by kitchen
+  // Audio alerts for new orders & orders marked ready by kitchen & waiter payment submissions
   useEffect(() => {
     const newCount = newOrders.length;
     const readyCount = readyOrders.length;
+    const pendingConfCount = pendingConfirmationOrders.length;
 
     if (prevNewCount.current >= 0 && newCount > prevNewCount.current && !loading) {
       if (soundEnabled) playNotificationSound('new_order');
@@ -688,15 +696,21 @@ export default function OrdersPage() {
     if (prevReadyCount.current >= 0 && readyCount > prevReadyCount.current && !loading) {
       if (soundEnabled) playNotificationSound('ready');
     }
+    if (prevPendingConfCount.current >= 0 && pendingConfCount > prevPendingConfCount.current && !loading) {
+      if (soundEnabled) playNotificationSound('ready');
+    }
 
     prevNewCount.current = newCount;
     prevReadyCount.current = readyCount;
-  }, [newOrders.length, readyOrders.length, soundEnabled, loading]);
+    prevPendingConfCount.current = pendingConfCount;
+  }, [newOrders.length, readyOrders.length, pendingConfirmationOrders.length, soundEnabled, loading]);
 
   const visibleOrders =
     activeTab === 'new'
       ? newOrders
-      : readyOrders;
+      : activeTab === 'ready'
+      ? readyOrders
+      : pendingConfirmationOrders;
 
   // =========================================================
   // LOADING
@@ -877,6 +891,42 @@ export default function OrdersPage() {
             </span>
 
             {activeTab === 'ready' && (
+              <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-restaurant-accent" />
+            )}
+
+          </button>
+
+          {/* PAYMENT CONFIRMATION (WAITER SUBMISSIONS) */}
+
+          <button
+            onClick={() =>
+              setActiveTab('payment_confirmation')
+            }
+            className={`
+              relative px-5 py-3 text-sm font-semibold
+              transition-colors
+              ${
+                activeTab === 'payment_confirmation'
+                  ? 'text-restaurant-accent'
+                  : 'text-gray-500 hover:text-gray-800 dark:hover:text-white'
+              }
+            `}
+          >
+            <span className="flex items-center gap-2">
+
+              <CheckCircle2 size={18} />
+
+              {isAmharic ? 'ክፍያ ማረጋገጫ' : 'Payment Confirmation'}
+
+              {pendingConfirmationOrders.length > 0 && (
+                <span className="min-w-[22px] h-5 px-1.5 flex items-center justify-center rounded-full bg-purple-600 text-white text-xs font-bold animate-pulse">
+                  {pendingConfirmationOrders.length}
+                </span>
+              )}
+
+            </span>
+
+            {activeTab === 'payment_confirmation' && (
               <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-restaurant-accent" />
             )}
 
@@ -2082,6 +2132,33 @@ function EmptyState({
           {isAmharic
             ? 'አዳዲስ የደንበኛ ትዕዛዞች እዚህ ይታያሉ።'
             : 'New customer orders will appear here.'}
+        </p>
+
+      </div>
+    );
+  }
+
+  if (type === 'payment_confirmation') {
+    return (
+      <div className="restaurant-card p-10 text-center">
+
+        <div className="flex justify-center mb-3">
+
+          <CheckCircle2
+            size={32}
+            className="text-purple-500"
+          />
+
+        </div>
+
+        <h3 className="font-semibold text-restaurant-text dark:text-white">
+          {isAmharic ? 'ምንም የሚረጋገጥ ክፍያ የለም' : 'No pending payment confirmations'}
+        </h3>
+
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {isAmharic
+            ? 'በአስተናጋጆች የተላኩ የክፍያ ማረጋገጫዎች እዚህ ይታያሉ።'
+            : 'Payment submissions from waiters awaiting cashier approval will appear here.'}
         </p>
 
       </div>
