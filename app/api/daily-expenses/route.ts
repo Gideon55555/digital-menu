@@ -246,7 +246,7 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('daily_expenses')
       .update({
         description: String(itemTitle).trim(),
@@ -258,6 +258,24 @@ export async function PUT(request: NextRequest) {
       .eq('id', id)
       .select()
       .single()
+
+    if (error) {
+      console.warn('Update expense failed with primary fields, retrying without updated_at:', error.message)
+      const fallback = await supabase
+        .from('daily_expenses')
+        .update({
+          description: String(itemTitle).trim(),
+          amount: expenseAmount,
+          category: category || 'general',
+          expense_date: expense_date || formatYMD(new Date()),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) {
       console.error('Update expense error:', error)
