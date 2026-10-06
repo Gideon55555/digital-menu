@@ -1527,7 +1527,10 @@ function PaymentModal({
 
   const handleConfirmSubmission = () => {
     const targetIds = currentSelectedOrders.map((o) => o.id);
-    const amountVal = Number(paymentAmount);
+    const parsedAmountInput = Number(paymentAmount);
+    const amountVal = !isNaN(parsedAmountInput) && parsedAmountInput >= parsedOrderTotal
+      ? parsedAmountInput
+      : parsedOrderTotal;
     onConfirm(targetIds, amountVal);
   };
 
@@ -1696,6 +1699,13 @@ function PaymentModal({
               </span>
 
             </div>
+
+            {Number(paymentAmount) > grandTotal && (
+              <div className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center justify-between shadow-xs">
+                <span>{language === 'am' ? 'ለደንበኛው የሚመለስ መልስ (Change):' : 'Change to Return:'}</span>
+                <span className="font-mono text-sm">{(Number(paymentAmount) - grandTotal).toFixed(2)} ETB</span>
+              </div>
+            )}
 
           </div>
 

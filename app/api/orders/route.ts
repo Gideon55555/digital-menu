@@ -1342,18 +1342,15 @@ export async function PUT(
       )
 
       if (
-        Math.abs(
-          paymentAmount -
-            combinedOrdersTotal
-        ) > 0.01
+        paymentAmount < combinedOrdersTotal - 0.01
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              `Payment amount must be ${combinedOrdersTotal.toFixed(
+              `Payment amount cannot be less than order total (${combinedOrdersTotal.toFixed(
                 2
-              )} ETB.`,
+              )} ETB).`,
           },
           { status: 400 }
         )
