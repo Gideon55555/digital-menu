@@ -210,6 +210,83 @@ export async function DELETE(request: NextRequest) {
 }
 
 /* =========================================================
+   PUT /api/daily-expenses
+   Body: { id, description, item, amount, price, category, expense_date }
+========================================================= */
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Expense ID is required for updating' },
+        { status: 400 }
+      )
+    }
+
+    const itemTitle = body.item || body.description
+    const costValue = body.price !== undefined ? body.price : body.amount
+    const category = body.category || 'general'
+    const expense_date = body.expense_date
+
+    if (!itemTitle || !String(itemTitle).trim()) {
+      return NextResponse.json(
+        { success: false, error: 'Item description is required' },
+        { status: 400 }
+      )
+    }
+
+    const expenseAmount = Number(costValue)
+    if (!Number.isFinite(expenseAmount) || expenseAmount <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Price/Amount must be a positive number' },
+        { status: 400 }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('daily_expenses')
+      .update({
+        description: String(itemTitle).trim(),
+        amount: expenseAmount,
+        category: category || 'general',
+        expense_date: expense_date || formatYMD(new Date()),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Update expense error:', error)
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      data,
+    })
+  } catch (error) {
+    console.error('Update expense error:', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to update expense',
+      },
+      { status: 500 }
+    )
+  }
+}
+
+/* =========================================================
    DATE RANGE HELPER
 ========================================================= */
 

@@ -34,6 +34,7 @@ import {
   Eye,
   Trash2,
   Plus,
+  Pencil,
   TrendingUp,
   TrendingDown,
   ReceiptText,
@@ -174,6 +175,22 @@ function OrdersReportPageContent() {
   const [expenseCategory, setExpenseCategory] = useState('groceries')
   const [addingExpense, setAddingExpense] = useState(false)
   const [expenseError, setExpenseError] = useState('')
+  const [editingExpense, setEditingExpense] = useState<DailyExpense | null>(null)
+
+  const handleStartEditExpense = (exp: DailyExpense) => {
+    setEditingExpense(exp)
+    setExpenseDesc(exp.description)
+    setExpenseAmount(String(exp.amount))
+    setExpenseCategory(exp.category || 'groceries')
+    setExpenseError('')
+  }
+
+  const handleCancelEditExpense = () => {
+    setEditingExpense(null)
+    setExpenseDesc('')
+    setExpenseAmount('')
+    setExpenseError('')
+  }
 
   /*
    * =========================================================
@@ -260,22 +277,36 @@ function OrdersReportPageContent() {
     try {
       setAddingExpense(true)
       setExpenseError('')
-      const res = await fetch('/api/daily-expenses', {
-        method: 'POST',
+      const isEditing = Boolean(editingExpense)
+      const url = '/api/daily-expenses'
+      const method = isEditing ? 'PUT' : 'POST'
+      const bodyPayload = isEditing
+        ? {
+            id: editingExpense!.id,
+            description: expenseDesc.trim(),
+            amount: Number(expenseAmount),
+            category: expenseCategory,
+            expense_date: editingExpense!.expense_date || new Date().toISOString().slice(0, 10),
+          }
+        : {
+            description: expenseDesc.trim(),
+            amount: Number(expenseAmount),
+            category: expenseCategory,
+            expense_date: new Date().toISOString().slice(0, 10),
+          }
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: expenseDesc.trim(),
-          amount: Number(expenseAmount),
-          category: expenseCategory,
-          expense_date: new Date().toISOString().slice(0, 10),
-        }),
+        body: JSON.stringify(bodyPayload),
       })
       const result = await res.json()
       if (!res.ok || !result.success) {
-        throw new Error(result.error || 'Failed to add expense')
+        throw new Error(result.error || (isEditing ? 'Failed to update expense' : 'Failed to add expense'))
       }
       setExpenseDesc('')
       setExpenseAmount('')
+      setEditingExpense(null)
       loadReport(true)
     } catch (err) {
       setExpenseError(err instanceof Error ? err.message : 'Failed to save expense')
@@ -1842,12 +1873,27 @@ function OrdersReportPageContent() {
             {/* DRAWER CONTENT */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-              {/* ADD EXPENSE FORM */}
+              {/* ADD/EDIT EXPENSE FORM */}
               <form onSubmit={handleAddExpense} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20 space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                  <Plus size={14} />
-                  {t.addExpense || (language === 'am' ? 'አዲስ ወጪ መመዝገቢያ' : 'Record New Expense')}
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                    {editingExpense ? <Pencil size={14} /> : <Plus size={14} />}
+                    {editingExpense
+                      ? (language === 'am' ? 'ወጪ ማስተካከያ' : 'Edit Expense')
+                      : (t.addExpense || (language === 'am' ? 'አዲስ ወጪ መመዝገቢያ' : 'Record New Expense'))}
+                  </h3>
+
+                  {editingExpense && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditExpense}
+                      className="text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:underline flex items-center gap-1"
+                    >
+                      <X size={12} />
+                      {language === 'am' ? 'ሰርዝ' : 'Cancel'}
+                    </button>
+                  )}
+                </div>
 
                 {expenseError && (
                   <p className="text-xs text-red-600 dark:text-red-400 font-semibold">{expenseError}</p>
@@ -1903,14 +1949,34 @@ function OrdersReportPageContent() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={addingExpense}
-                  className="w-full mt-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 text-xs transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
-                >
-                  {addingExpense ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
-                  {t.saveExpense || (language === 'am' ? 'ወጪ ይመዝገብ' : 'Save Expense')}
-                </button>
+                <div className="flex gap-2">
+                  {editingExpense && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditExpense}
+                      className="py-2 px-3 rounded-lg border border-stone-300 text-stone-700 dark:border-slate-700 dark:text-stone-300 text-xs font-bold transition"
+                    >
+                      {language === 'am' ? 'ሰርዝ' : 'Cancel'}
+                    </button>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={addingExpense}
+                    className="flex-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 text-xs transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                  >
+                    {addingExpense ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : editingExpense ? (
+                      <Pencil size={14} />
+                    ) : (
+                      <Plus size={14} />
+                    )}
+                    {editingExpense
+                      ? (language === 'am' ? 'ወጪ አሻሽል' : 'Update Expense')
+                      : (t.saveExpense || (language === 'am' ? 'ወጪ ይመዝገብ' : 'Save Expense'))}
+                  </button>
+                </div>
               </form>
 
               {/* EXPENSE LIST */}
@@ -1950,10 +2016,17 @@ function OrdersReportPageContent() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-rose-600 dark:text-rose-400 mr-1">
                             -{money(exp.amount)}
                           </span>
+                          <button
+                            onClick={() => handleStartEditExpense(exp)}
+                            className="p-1 rounded text-stone-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
                           <button
                             onClick={() => handleDeleteExpense(exp.id)}
                             className="p-1 rounded text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"

@@ -16,6 +16,8 @@ import {
   Check,
   RefreshCw,
   Wallet,
+  Pencil,
+  X,
 } from 'lucide-react';
 
 export interface DailyExpense {
@@ -76,6 +78,7 @@ export default function DailyExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingExpense, setEditingExpense] = useState<DailyExpense | null>(null);
 
   // Form input states (Item and Price)
   const [item, setItem] = useState('');
@@ -93,6 +96,26 @@ export default function DailyExpensesPage() {
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [copiedSql, setCopiedSql] = useState(false);
+
+  const handleStartEdit = (exp: DailyExpense) => {
+    setEditingExpense(exp);
+    setItem(exp.description);
+    setPrice(String(exp.amount));
+    setCategory(exp.category || 'groceries');
+    setExpenseDate(exp.expense_date);
+    setFormError('');
+    setSuccessMsg('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExpense(null);
+    setItem('');
+    setPrice('');
+    setCategory('groceries');
+    setFormError('');
+    setSuccessMsg('');
+  };
 
   // Format currency helper
   const money = (val: number) => {
@@ -172,26 +195,48 @@ export default function DailyExpensesPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch('/api/daily-expenses', {
-        method: 'POST',
+      const isEditing = Boolean(editingExpense);
+      const url = '/api/daily-expenses';
+      const method = isEditing ? 'PUT' : 'POST';
+      const bodyPayload = isEditing
+        ? {
+            id: editingExpense!.id,
+            item: item.trim(),
+            price: priceNum,
+            category,
+            expense_date: expenseDate,
+          }
+        : {
+            item: item.trim(),
+            price: priceNum,
+            category,
+            expense_date: expenseDate,
+          };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          item: item.trim(),
-          price: priceNum,
-          category,
-          expense_date: expenseDate,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to save expense');
+        throw new Error(json.error || (isEditing ? 'Failed to update expense' : 'Failed to save expense'));
       }
 
-      setSuccessMsg(isAmharic ? 'ዕለታዊ ወጪ በስኬት ተመዝግቧል!' : 'Daily cost saved successfully!');
+      setSuccessMsg(
+        isEditing
+          ? isAmharic
+            ? 'ዕለታዊ ወጪ በስኬት ተሻሽሏል!'
+            : 'Daily cost updated successfully!'
+          : isAmharic
+          ? 'ዕለታዊ ወጪ በስኬት ተመዝግቧል!'
+          : 'Daily cost saved successfully!'
+      );
       setItem('');
       setPrice('');
+      setEditingExpense(null);
       
       // Refresh current view & KPIs
       await Promise.all([fetchExpenses(activeTab, true), fetchKpis()]);
@@ -337,11 +382,34 @@ export default function DailyExpensesPage() {
 
         {/* INPUT FORM: Accept Item and Price */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-stone-100 dark:border-slate-800">
-            <Plus className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-            <h2 className="text-lg font-bold text-stone-900 dark:text-white">
-              {isAmharic ? 'አዲስ ወጪ መመዝገቢያ' : 'Record New Daily Cost'}
-            </h2>
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              {editingExpense ? (
+                <Pencil className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              ) : (
+                <Plus className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+              )}
+              <h2 className="text-lg font-bold text-stone-900 dark:text-white">
+                {editingExpense
+                  ? isAmharic
+                    ? 'ዕለታዊ ወጪ ማስተካከያ (Edit Cost)'
+                    : 'Edit Daily Cost'
+                  : isAmharic
+                  ? 'አዲስ ወጪ መመዝገቢያ'
+                  : 'Record New Daily Cost'}
+              </h2>
+            </div>
+
+            {editingExpense && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-slate-700 bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200 text-xs font-bold transition flex items-center gap-1"
+              >
+                <X className="h-3.5 w-3.5" />
+                {isAmharic ? 'ማስተካከያ ሰርዝ' : 'Cancel Edit'}
+              </button>
+            )}
           </div>
 
           {formError && (
@@ -428,16 +496,36 @@ export default function DailyExpensesPage() {
             </div>
 
             {/* Submit Button */}
-            <div className="md:col-span-12 flex justify-end mt-2">
+            <div className="md:col-span-12 flex justify-end gap-2 mt-2">
+              {editingExpense && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-5 py-3 rounded-xl border border-stone-300 dark:border-slate-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 text-sm font-bold transition flex items-center gap-1.5"
+                >
+                  <X className="h-4 w-4" />
+                  <span>{isAmharic ? 'ሰርዝ' : 'Cancel'}</span>
+                </button>
+              )}
+
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 disabled:opacity-50"
+                className={`px-6 py-3 rounded-xl text-white text-sm font-bold shadow-md hover:shadow-lg transition flex items-center gap-2 disabled:opacity-50 ${
+                  editingExpense
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
               >
                 {submitting ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
                     <span>{isAmharic ? 'በማስቀመጥ ላይ...' : 'Saving...'}</span>
+                  </>
+                ) : editingExpense ? (
+                  <>
+                    <Pencil className="h-4 w-4" />
+                    <span>{isAmharic ? 'ወጪ አሻሽል' : 'Update Daily Cost'}</span>
                   </>
                 ) : (
                   <>
@@ -537,7 +625,14 @@ export default function DailyExpensesPage() {
                         <td className="py-3 px-4 text-right font-mono font-bold text-rose-600 dark:text-rose-400 text-sm whitespace-nowrap">
                           -{money(Number(exp.amount))}
                         </td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <button
+                            onClick={() => handleStartEdit(exp)}
+                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition mr-1"
+                            title={isAmharic ? 'ወጪ አስተካክል' : 'Edit expense'}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
                           <button
                             onClick={() => handleDelete(exp.id, exp.description)}
                             disabled={deletingId === exp.id}
