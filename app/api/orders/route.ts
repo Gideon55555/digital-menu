@@ -1038,6 +1038,125 @@ export async function PUT(
     }
 
     /* =====================================================
+       MODIFY ORDER ITEMS (CASHIER / ADMIN EDIT ORDER)
+    ===================================================== */
+
+    if (action === 'modify_order') {
+      const { items } = body
+      if (!Array.isArray(items) || items.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'An order must contain at least one item' },
+          { status: 400 }
+        )
+      }
+
+      // Fetch current order
+      const { data: existingOrder, error: fetchOrderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (fetchOrderError || !existingOrder) {
+        return NextResponse.json(
+          { success: false, error: 'Order not found' },
+          { status: 404 }
+        )
+      }
+
+      // Fetch menu items to verify prices & names if needed
+      const menuItemIds = [...new Set(items.map((i: any) => i.menu_item_id).filter(Boolean))]
+      const { data: menuItemsData } = await supabase
+        .from('menu_items')
+        .select('id, name, price')
+        .in('id', menuItemIds)
+
+      const menuMap = new Map((menuItemsData || []).map((m: any) => [m.id, m]))
+
+      let newSubtotal = 0
+      const itemsToInsert = items.map((i: any) => {
+        const menuItem = menuMap.get(i.menu_item_id)
+        const unitPrice = Number(i.unit_price !== undefined ? i.unit_price : menuItem?.price || 0)
+        const qty = Math.max(1, Number(i.quantity) || 1)
+        const lineSubtotal = unitPrice * qty
+        newSubtotal += lineSubtotal
+
+        return {
+          order_id: id,
+          menu_item_id: i.menu_item_id,
+          item_name: i.item_name || menuItem?.name || 'Item',
+          unit_price: unitPrice,
+          quantity: qty,
+          subtotal: lineSubtotal,
+          notes: i.notes || null,
+          status: i.status || 'pending',
+          created_at: new Date().toISOString(),
+        }
+      })
+
+      // Delete existing order_items and insert updated items list
+      await supabase.from('order_items').delete().eq('order_id', id)
+
+      const { data: insertedItems, error: insertError } = await supabase
+        .from('order_items')
+        .insert(itemsToInsert)
+        .select()
+
+      if (insertError) {
+        return NextResponse.json(
+          { success: false, error: insertError.message || 'Failed to update order items' },
+          { status: 500 }
+        )
+      }
+
+      // Recalculate order subtotal and total
+      const discount = Number(existingOrder.discount || 0)
+      const tax = Number(existingOrder.tax || 0)
+      const newTotal = Math.max(0, newSubtotal - discount + tax)
+
+      const { data: updatedOrder, error: updateOrderErr } = await supabase
+        .from('orders')
+        .update({
+          subtotal: newSubtotal,
+          total: newTotal,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateOrderErr || !updatedOrder) {
+        return NextResponse.json(
+          { success: false, error: updateOrderErr?.message || 'Failed to update order record' },
+          { status: 500 }
+        )
+      }
+
+      await logOrderHistory({
+        orderId: id,
+        previousStatus: existingOrder.status,
+        newStatus: existingOrder.status,
+        note: `Order modified by ${user_role || 'cashier'}. New total: ${newTotal.toFixed(2)} ETB (${itemsToInsert.length} items)`,
+      })
+
+      await logAction({
+        action_type: 'ORDER_UPDATED',
+        description: `Modified items for order #${existingOrder.order_number}. New total: ${newTotal.toFixed(2)} ETB`,
+        role: user_role || 'cashier',
+        metadata: { order_id: id, total: newTotal, item_count: itemsToInsert.length },
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Order modified successfully',
+        data: {
+          ...updatedOrder,
+          items: insertedItems || [],
+        },
+      })
+    }
+
+    /* =====================================================
        APPROVE WAITER PAYMENT
     ===================================================== */
 

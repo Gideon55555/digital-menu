@@ -9,11 +9,8 @@ import {
   Trash2,
   Calendar,
   TrendingDown,
-  Layers,
   CheckCircle2,
   AlertCircle,
-  Copy,
-  Check,
   RefreshCw,
   Wallet,
   Pencil,
@@ -37,28 +34,6 @@ const CATEGORY_OPTIONS = [
   { value: 'maintenance', labelEn: 'Maintenance / Repair', labelAm: 'ጥገና' },
   { value: 'general', labelEn: 'General / Other', labelAm: 'ልዩ ልዩ' },
 ];
-
-const DAILY_EXPENSES_SQL = `-- Run this SQL query in your Supabase SQL Editor to create the daily_expenses table:
-CREATE TABLE IF NOT EXISTS public.daily_expenses (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  description TEXT NOT NULL,
-  amount NUMERIC(12, 2) NOT NULL,
-  category TEXT DEFAULT 'general',
-  expense_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE public.daily_expenses ENABLE ROW LEVEL SECURITY;
-
--- Allow read & write access
-CREATE POLICY "Allow public read and write to daily_expenses"
-  ON public.daily_expenses
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
-`;
 
 export default function DailyExpensesPage() {
   const { isAmharic } = useAdminLanguage();
@@ -95,7 +70,6 @@ export default function DailyExpensesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [copiedSql, setCopiedSql] = useState(false);
 
   const handleStartEdit = (exp: DailyExpense) => {
     setEditingExpense(exp);
@@ -275,12 +249,6 @@ export default function DailyExpensesPage() {
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const handleCopySql = () => {
-    navigator.clipboard.writeText(DAILY_EXPENSES_SQL);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2500);
   };
 
   return (
@@ -710,38 +678,6 @@ export default function DailyExpensesPage() {
               </table>
             </div>
           )}
-        </div>
-
-        {/* DATABASE SETUP SQL BANNER */}
-        <div className="bg-slate-900 dark:bg-black p-6 rounded-2xl text-white space-y-4 border border-slate-800 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-1">
-                <Layers className="h-4 w-4" />
-                <span>{isAmharic ? 'የዳታቤዝ መዋቅር ማስታወሻ (Supabase SQL)' : 'Database Migration SQL Command'}</span>
-              </div>
-              <h3 className="text-base font-bold">
-                {isAmharic ? 'የ \"daily_expenses\" ሠንጠረዥ በ Supabase ዳታቤዝዎ ውስጥ መፈጠሩን ያረጋግጡ' : 'Ensure table "daily_expenses" is created in Supabase'}
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                {isAmharic
-                  ? 'ከታች ያለውን የ SQL ኮድ ኮፒ በማድረግ በ Supabase SQL Editor ውስጥ ያሂዱ።'
-                  : 'Run the following SQL statement in your Supabase SQL Editor to enable daily expenses tracking.'}
-              </p>
-            </div>
-
-            <button
-              onClick={handleCopySql}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-500 text-white transition self-start sm:self-auto shrink-0 shadow-md"
-            >
-              {copiedSql ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span>{copiedSql ? (isAmharic ? 'ተገልብጧል!' : 'Copied!') : (isAmharic ? 'SQL ኮፒ አድርግ' : 'Copy SQL Command')}</span>
-            </button>
-          </div>
-
-          <pre className="p-4 rounded-xl bg-slate-950 text-slate-300 text-xs font-mono overflow-x-auto border border-slate-800">
-            <code>{DAILY_EXPENSES_SQL}</code>
-          </pre>
         </div>
       </div>
     </AdminLayout>

@@ -20,6 +20,9 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
+  Pencil,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { compressReceiptImage } from '@/lib/utils/image';
 import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
@@ -136,6 +139,7 @@ export default function OrdersPage() {
 
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [compressingReceipt, setCompressingReceipt] = useState(false);
+  const [modifyOrder, setModifyOrder] = useState<Order | null>(null);
 
   const [channelConnected, setChannelConnected] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -911,6 +915,9 @@ export default function OrdersPage() {
                   onCancel={
                     cancelOrder
                   }
+                  onModifyOrder={(ord) =>
+                    setModifyOrder(ord)
+                  }
                   onRecordPayment={
                     openPaymentModal
                   }
@@ -968,6 +975,21 @@ export default function OrdersPage() {
         />
       )}
 
+      {/* =====================================================
+          MODIFY ORDER MODAL
+      ====================================================== */}
+      {modifyOrder && (
+        <ModifyOrderModal
+          order={modifyOrder}
+          isAmharic={isAmharic}
+          onCancel={() => setModifyOrder(null)}
+          onSaveSuccess={async () => {
+            setModifyOrder(null);
+            await loadOrders(true);
+          }}
+        />
+      )}
+
     </AdminLayout>
   );
 }
@@ -983,6 +1005,7 @@ function OrderCard({
   processing,
   onConfirmAndSend,
   onCancel,
+  onModifyOrder,
   onRecordPayment,
   onApprovePayment,
   onRejectPayment,
@@ -999,6 +1022,10 @@ function OrderCard({
 
   onCancel: (
     orderId: string
+  ) => void;
+
+  onModifyOrder?: (
+    order: Order
   ) => void;
 
   onRecordPayment: (
@@ -1068,13 +1095,28 @@ function OrderCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="text-right">
             <span className="text-xs text-gray-400 block">{isAmharic ? 'ጠቅላላ' : 'Total'}</span>
             <span className="text-base font-extrabold text-restaurant-accent">
               {Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
             </span>
           </div>
+
+          {onModifyOrder && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onModifyOrder(order);
+              }}
+              disabled={processing}
+              title={isAmharic ? 'ትዕዛዝ አስተካክል (Modify Order)' : 'Modify Order Items (Add/Remove Foods or Drinks)'}
+              className="p-1.5 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition"
+            >
+              <Pencil size={17} />
+            </button>
+          )}
 
           <button
             type="button"
@@ -2058,6 +2100,369 @@ function EmptyState({
           : 'Orders completed by the kitchen will appear here.'}
       </p>
 
+    </div>
+  );
+}
+
+/* ============================================================
+   MODIFY ORDER MODAL
+============================================================ */
+
+type EditItem = {
+  id?: string;
+  menu_item_id: string;
+  item_name: LocalizedName;
+  unit_price: number;
+  quantity: number;
+  notes?: string | null;
+  status?: string;
+};
+
+function ModifyOrderModal({
+  order,
+  isAmharic,
+  onCancel,
+  onSaveSuccess,
+}: {
+  order: Order;
+  isAmharic?: boolean;
+  onCancel: () => void;
+  onSaveSuccess: () => void;
+}) {
+  const [itemsToEdit, setItemsToEdit] = useState<EditItem[]>(() => {
+    return (order.items || []).map((item) => ({
+      id: item.id,
+      menu_item_id: item.menu_item_id,
+      item_name: item.item_name,
+      unit_price: Number(item.unit_price || (item.quantity > 0 ? item.subtotal / item.quantity : 0)),
+      quantity: Number(item.quantity || 1),
+      notes: item.notes || '',
+      status: item.status || 'pending',
+    }));
+  });
+
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [loadingMenu, setLoadingMenu] = useState(true);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function loadMenu() {
+      try {
+        setLoadingMenu(true);
+        const res = await fetch('/api/menu');
+        const json = await res.json();
+        if (json.success) {
+          const list = json.data || json.items || [];
+          setMenuItems(list);
+        }
+      } catch (err) {
+        console.error('Failed to load menu items:', err);
+      } finally {
+        setLoadingMenu(false);
+      }
+    }
+    loadMenu();
+  }, []);
+
+  const handleQuantityChange = (index: number, delta: number) => {
+    setItemsToEdit((prev) => {
+      const next = [...prev];
+      const newQty = next[index].quantity + delta;
+      if (newQty <= 0) {
+        return next.filter((_, i) => i !== index);
+      }
+      next[index] = { ...next[index], quantity: newQty };
+      return next;
+    });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setItemsToEdit((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddItem = (menuItem: any) => {
+    if (!menuItem) return;
+    setItemsToEdit((prev) => {
+      const existingIdx = prev.findIndex((i) => i.menu_item_id === menuItem.id);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = {
+          ...next[existingIdx],
+          quantity: next[existingIdx].quantity + 1,
+        };
+        return next;
+      }
+      const rawName = menuItem.name;
+      const title = typeof rawName === 'object' ? (isAmharic ? rawName.am || rawName.en : rawName.en || rawName.am) : rawName;
+
+      return [
+        ...prev,
+        {
+          menu_item_id: menuItem.id,
+          item_name: title || menuItem.title || 'Item',
+          unit_price: Number(menuItem.price || 0),
+          quantity: 1,
+          notes: '',
+          status: 'pending',
+        },
+      ];
+    });
+  };
+
+  const computedSubtotal = itemsToEdit.reduce(
+    (sum, item) => sum + item.unit_price * item.quantity,
+    0
+  );
+  const discount = Number(order.discount || 0);
+  const tax = Number(order.tax || 0);
+  const computedTotal = Math.max(0, computedSubtotal - discount + tax);
+
+  const handleSave = async () => {
+    if (itemsToEdit.length === 0) {
+      setError(
+        isAmharic
+          ? 'እባክዎ ቢያንስ አንድ ምግብ ወይም መጠጥ በትዕዛዙ ውስጥ ያስቅሩ'
+          : 'Please keep at least one food or drink item in the order'
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+
+      const res = await fetch('/api/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: order.id,
+          action: 'modify_order',
+          items: itemsToEdit,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to modify order');
+      }
+
+      onSaveSuccess();
+    } catch (err) {
+      console.error('Modify order error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update order');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (!searchFilter.trim()) return true;
+    const nameStr = typeof item.name === 'object' ? `${item.name.en || ''} ${item.name.am || ''}` : String(item.name || '');
+    return nameStr.toLowerCase().includes(searchFilter.toLowerCase());
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-stone-200 dark:border-slate-800 space-y-5 my-8">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-stone-100 dark:border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+              <Pencil size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-stone-900 dark:text-white">
+                {isAmharic ? 'ትዕዛዝ አስተካክል (Modify Order)' : 'Modify Order Items'}
+              </h3>
+              <p className="text-xs text-stone-500 dark:text-stone-400 font-mono font-bold">
+                {order.order_number.startsWith('order-') ? order.order_number : `#${order.order_number}`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onCancel}
+            className="p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 dark:hover:bg-slate-800 transition"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* CURRENT ITEMS IN ORDER */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 flex items-center justify-between">
+            <span>{isAmharic ? 'በትዕዛዙ ውስጥ ያሉ ምግቦች/መጠጦች' : 'Order Items'} ({itemsToEdit.length})</span>
+            <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">
+              Subtotal: {computedSubtotal.toFixed(2)} ETB
+            </span>
+          </h4>
+
+          {itemsToEdit.length === 0 ? (
+            <div className="p-6 text-center border border-dashed border-stone-200 dark:border-slate-800 rounded-2xl text-stone-400 text-xs">
+              {isAmharic ? 'ምንም ምግብ/መጠጥ የለም። እባክዎ ከታች አዲስ ያክሉ።' : 'No items left in order. Add items below.'}
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {itemsToEdit.map((item, idx) => {
+                const titleStr = typeof item.item_name === 'object'
+                  ? (isAmharic ? item.item_name.am || item.item_name.en : item.item_name.en || item.item_name.am)
+                  : String(item.item_name || 'Item');
+
+                return (
+                  <div
+                    key={item.id || `${item.menu_item_id}-${idx}`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl border border-stone-200 dark:border-slate-800 bg-stone-50 dark:bg-slate-800/60 gap-3"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-stone-900 dark:text-white">
+                        {titleStr}
+                      </p>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 font-mono">
+                        {item.unit_price.toFixed(2)} ETB × {item.quantity} = <strong className="text-stone-900 dark:text-white">{(item.unit_price * item.quantity).toFixed(2)} ETB</strong>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityChange(idx, -1)}
+                          className="w-7 h-7 flex items-center justify-center text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold"
+                        >
+                          -
+                        </button>
+                        <span className="w-8 text-center font-mono font-bold text-xs">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuantityChange(idx, 1)}
+                          className="w-7 h-7 flex items-center justify-center text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-slate-800 rounded-lg text-xs font-bold"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(idx)}
+                        className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+                        title={isAmharic ? 'ምግቡን ከትዕዛዝ አስወግድ' : 'Remove item'}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ADD NEW ITEM FROM MENU */}
+        <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-slate-800/40 border border-amber-200/60 dark:border-slate-700/60 space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+            <Plus size={14} />
+            <span>{isAmharic ? 'አዲስ ምግብ ወይም መጠጥ ጨምር' : 'Add Food or Drink to Order'}</span>
+          </h4>
+
+          {loadingMenu ? (
+            <div className="text-xs text-stone-500 py-2 flex items-center gap-2">
+              <RefreshCw size={14} className="animate-spin text-amber-600" />
+              <span>{isAmharic ? 'የምግብ ዝርዝር በመጫን ላይ...' : 'Loading menu items...'}</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder={isAmharic ? 'ምግብ ወይም መጠጥ በስም ፈልግ...' : 'Search food or drink by name...'}
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-stone-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+              />
+
+              <div className="max-h-36 overflow-y-auto divide-y divide-stone-100 dark:divide-slate-800 bg-white dark:bg-slate-900 rounded-xl border border-stone-200 dark:border-slate-800">
+                {filteredMenuItems.length === 0 ? (
+                  <p className="p-3 text-xs text-stone-400 text-center">
+                    {isAmharic ? 'ምንም አልተገኘም' : 'No menu items found'}
+                  </p>
+                ) : (
+                  filteredMenuItems.map((m) => {
+                    const title = typeof m.name === 'object' ? (isAmharic ? m.name.am || m.name.en : m.name.en || m.name.am) : m.name;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => handleAddItem(m)}
+                        className="p-2.5 flex items-center justify-between hover:bg-amber-50 dark:hover:bg-slate-800 cursor-pointer transition text-xs"
+                      >
+                        <div>
+                          <p className="font-bold text-stone-900 dark:text-white">{title}</p>
+                          <p className="text-[10px] text-stone-400 capitalize">{m.category || 'Menu Item'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-amber-700 dark:text-amber-400">{Number(m.price).toFixed(2)} ETB</span>
+                          <span className="p-1 rounded-lg bg-amber-600 text-white font-bold text-[10px] flex items-center gap-0.5">
+                            <Plus size={12} /> {isAmharic ? 'ጨምር' : 'Add'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SUMMARY TOTALS */}
+        <div className="p-4 rounded-2xl bg-stone-100 dark:bg-slate-800 flex items-center justify-between">
+          <span className="text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wider">
+            {isAmharic ? 'አዲስ አጠቃላይ ዋጋ (New Total):' : 'New Order Total:'}
+          </span>
+          <span className="text-xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+            {computedTotal.toFixed(2)} ETB
+          </span>
+        </div>
+
+        {/* ACTION BUTTONS */}
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-5 py-2.5 rounded-xl border border-stone-300 dark:border-slate-700 text-stone-700 dark:text-stone-300 font-bold text-xs hover:bg-stone-100 dark:hover:bg-slate-800 transition"
+          >
+            {isAmharic ? 'ሰርዝ (Cancel)' : 'Cancel'}
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2 disabled:opacity-50"
+          >
+            {saving ? (
+              <>
+                <RefreshCw size={14} className="animate-spin" />
+                <span>{isAmharic ? 'በማስቀመጥ ላይ...' : 'Saving...'}</span>
+              </>
+            ) : (
+              <>
+                <Check size={14} />
+                <span>{isAmharic ? 'ለውጦችን አስቀምጥ (Save Order)' : 'Save Order Modifications'}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
