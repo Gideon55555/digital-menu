@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { logAction } from '@/lib/activity-logger'
 
 function isDrinkCategory(type: string | null | undefined) {
   const normalized = String(type || '').trim().toLowerCase()
@@ -1180,11 +1181,15 @@ export async function PUT(
       }
 
       /* -----------------------------------------------
-         GET ORDER
+         GET TARGET ORDERS (SINGLE OR COMBINED TABLE ORDERS)
       ------------------------------------------------ */
 
+      const bodyData = await request.clone().json().catch(() => ({}))
+      const rawIds = bodyData.ids
+      const targetOrderIds: string[] = Array.isArray(rawIds) && rawIds.length > 0 ? rawIds : [id]
+
       const {
-        data: order,
+        data: targetOrders,
         error:
           orderLookupError,
       } = await supabase
@@ -1192,66 +1197,42 @@ export async function PUT(
         .select(
           'id, order_number, table_id, status, total'
         )
-        .eq(
+        .in(
           'id',
-          id
+          targetOrderIds
         )
-        .single()
 
       if (
         orderLookupError ||
-        !order
+        !targetOrders ||
+        targetOrders.length === 0
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'Order not found',
+              'Order(s) not found',
           },
           { status: 404 }
         )
       }
 
-      /* -----------------------------------------------
-         PAYMENT ONLY FOR READY / SERVED ORDERS
-      ------------------------------------------------ */
-
-      if (
-        order.status !== 'ready' &&
-        order.status !== 'served' &&
-        order.status !== 'payment_pending'
-      ) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              `Payment can only be recorded for a ready or served order. Current status: ${order.status}`,
-          },
-          { status: 400 }
-        )
-      }
-
-      const orderTotal =
-        Number(
-          order.total
-        )
-
-      /*
-       * Require the payment to match
-       * the order total.
-       */
+      const combinedOrdersTotal = targetOrders.reduce(
+        (sum, o) => sum + Number(o.total || 0),
+        0
+      )
 
       if (
         Math.abs(
           paymentAmount -
-            orderTotal
+            combinedOrdersTotal
         ) > 0.01
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              `Payment amount must be ${orderTotal.toFixed(
+              `Payment amount must be ${combinedOrdersTotal.toFixed(
                 2
               )} ETB.`,
           },
@@ -1265,198 +1246,136 @@ export async function PUT(
 
       const {
         data:
-          existingPayment,
+          existingPayments,
       } = await supabase
         .from('payments')
         .select(
-          'id, payment_status'
+          'id, order_id, payment_status'
         )
-        .eq(
+        .in(
           'order_id',
-          id
+          targetOrderIds
         )
         .eq(
           'payment_status',
           'CONFIRMED'
         )
-        .limit(1)
-        .maybeSingle()
 
       if (
-        existingPayment
+        existingPayments &&
+        existingPayments.length > 0
       ) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'This order already has a confirmed payment.',
+              'One or more selected orders already have a confirmed payment.',
           },
           { status: 400 }
         )
       }
 
-      // Clear any previous pending payment from waiter
-      await supabase.from('payments').delete().eq('order_id', id).eq('payment_status', 'PENDING')
-
-      /* -----------------------------------------------
-         CREATE PAYMENT RECORD
-      ------------------------------------------------ */
-
       const initialStatus = isWaiterSubmission ? 'PENDING' : 'CONFIRMED'
-
-      const {
-        data: payment,
-        error:
-          paymentError,
-      } = await supabase
-        .from('payments')
-        .insert({
-          order_id:
-            id,
-
-          payment_method:
-            payment_method,
-
-          amount:
-            paymentAmount,
-
-          tip_amount:
-            tipAmount,
-
-          payment_status:
-            initialStatus,
-
-          receipt_image:
-            receipt_image || null,
-
-          uploaded_at:
-            new Date().toISOString(),
-
-          confirmed_at:
-            isWaiterSubmission ? null : new Date().toISOString(),
-        })
-        .select()
-        .single()
-
-      if (
-        paymentError ||
-        !payment
-      ) {
-        console.error(
-          'Payment insert error:',
-          paymentError
-        )
-
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              paymentError?.message ||
-              'Failed to record payment',
-          },
-          { status: 500 }
-        )
-      }
-
-      /* -----------------------------------------------
-         CLOSE ORDER OR MARK PENDING APPROVAL
-      ------------------------------------------------ */
-
       const targetStatus = isWaiterSubmission ? 'payment_pending' : 'paid'
 
-      const {
-        data:
-          completedOrder,
-        error:
-          completeError,
-      } = await supabase
-        .from('orders')
-        .update({
-          status:
-            targetStatus,
+      /* -----------------------------------------------
+         PROCESS PAYMENT FOR ALL TARGET ORDERS
+      ------------------------------------------------ */
 
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          'id',
-          id
-        )
-        .select()
-        .single()
+      for (let i = 0; i < targetOrders.length; i++) {
+        const ord = targetOrders[i]
+        const currentOrdTotal = Number(ord.total || 0)
+        // Attach tip to the primary order
+        const currentTip = i === 0 ? tipAmount : 0
 
-      if (
-        completeError ||
-        !completedOrder
-      ) {
-        await supabase
+        // Clear any previous pending payment from waiter
+        await supabase.from('payments').delete().eq('order_id', ord.id).eq('payment_status', 'PENDING')
+
+        const { error: paymentInsertError } = await supabase
           .from('payments')
-          .delete()
-          .eq(
-            'id',
-            payment.id
-          )
+          .insert({
+            order_id: ord.id,
+            payment_method,
+            amount: currentOrdTotal,
+            tip_amount: currentTip,
+            payment_status: initialStatus,
+            receipt_image: receipt_image || null,
+            uploaded_at: new Date().toISOString(),
+            confirmed_at: isWaiterSubmission ? null : new Date().toISOString(),
+          })
 
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              completeError?.message ||
-              'Failed to update order status',
-          },
-          { status: 500 }
-        )
+        if (paymentInsertError) {
+          console.error('Payment insert error for order', ord.id, paymentInsertError)
+          return NextResponse.json(
+            {
+              success: false,
+              error: paymentInsertError.message || 'Failed to record payment',
+            },
+            { status: 500 }
+          )
+        }
+
+        await supabase
+          .from('orders')
+          .update({
+            status: targetStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', ord.id)
+
+        await logOrderHistory({
+          orderId: ord.id,
+          previousStatus: ord.status,
+          newStatus: targetStatus,
+          note: isWaiterSubmission
+            ? `Waiter submitted ${currentOrdTotal} ETB (${payment_method.toUpperCase()}) awaiting cashier approval`
+            : `Payment of ${currentOrdTotal} ETB recorded via ${payment_method.toUpperCase()} and order closed`,
+        })
       }
 
       /* -----------------------------------------------
          FREE TABLE (ONLY IF CONFIRMED CASHIER PAYMENT)
       ------------------------------------------------ */
 
-      if (
-        !isWaiterSubmission &&
-        order.table_id
-      ) {
-        const {
-          data:
-            activeOrders,
-        } = await supabase
-          .from('orders')
-          .select('id')
-          .eq(
-            'table_id',
-            order.table_id
-          )
-          .not(
-            'status',
-            'in',
-            '(completed,cancelled,paid)'
-          )
+      if (!isWaiterSubmission) {
+        const uniqueTableIds = [
+          ...new Set(
+            targetOrders
+              .map((o) => o.table_id)
+              .filter((tid): tid is string => Boolean(tid))
+          ),
+        ]
 
-        if (
-          !activeOrders ||
-          activeOrders.length ===
-            0
-        ) {
-          await supabase
-            .from('tables')
-            .update({
-              status:
-                'available',
-            })
-            .eq(
-              'id',
-              order.table_id
-            )
+        for (const tid of uniqueTableIds) {
+          const { data: activeOrders } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('table_id', tid)
+            .not('status', 'in', '(completed,cancelled,paid)')
+
+          if (!activeOrders || activeOrders.length === 0) {
+            await supabase
+              .from('tables')
+              .update({ status: 'available' })
+              .eq('id', tid)
+          }
         }
       }
 
-      await logOrderHistory({
-        orderId: id,
-        previousStatus: order.status,
-        newStatus: targetStatus,
-        note: isWaiterSubmission
-          ? `Waiter submitted ${paymentAmount} ETB (${payment_method.toUpperCase()}) with tip ${tipAmount} ETB awaiting cashier approval`
-          : `Payment of ${paymentAmount} ETB recorded via ${payment_method.toUpperCase()} and order closed`,
+      const orderNumbersStr = targetOrders
+        .map((o) => (o.order_number.startsWith('order-') ? o.order_number : `#${o.order_number}`))
+        .join(', ')
+
+      await logAction({
+        action_type: 'ORDER_PAID',
+        description: `Recorded payment of ${paymentAmount} ETB (${payment_method.toUpperCase()}) for order(s): ${orderNumbersStr}`,
+        role: user_role || 'cashier',
+        metadata: {
+          order_ids: targetOrderIds,
+          payment_method,
+          amount: paymentAmount,
+          tip_amount: tipAmount,
+        },
       })
 
       return NextResponse.json({
@@ -1464,12 +1383,9 @@ export async function PUT(
         pendingApproval: isWaiterSubmission,
         message: isWaiterSubmission
           ? 'Payment submitted for Cashier approval!'
-          : 'Payment recorded and order closed successfully.',
+          : 'Payment recorded and order(s) closed successfully.',
         data: {
-          order:
-            completedOrder,
-          payment:
-            payment,
+          orders: targetOrders,
         },
       })
     }
@@ -2301,9 +2217,23 @@ export async function PUT(
                 : status === 'completed'
                   ? 'Order completed'
                   : status === 'cancelled'
-                    ? 'Order cancelled'
+                    ? 'Order cancelled / removed'
                     : `Order status updated to ${status}`,
     })
+
+    if (status === 'cancelled') {
+      await logAction({
+        action_type: 'ORDER_CANCELLED',
+        description: `Order #${updatedOrder?.order_number || id} was cancelled / removed`,
+        target_id: id,
+      })
+    } else if (status === 'completed' || status === 'paid') {
+      await logAction({
+        action_type: 'ORDER_PAID',
+        description: `Order #${updatedOrder?.order_number || id} was marked completed / paid`,
+        target_id: id,
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -2324,6 +2254,107 @@ export async function PUT(
             ? error.message
             : 'Internal server error',
       },
+      { status: 500 }
+    )
+  }
+}
+
+/* =========================================================
+   DELETE /api/orders
+   Removes / Cancels an order from any stage
+========================================================= */
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    let id = searchParams.get('id')
+    let reason = searchParams.get('reason') || 'Removed by staff'
+    let userName = searchParams.get('user_name') || searchParams.get('user') || 'Staff User'
+    let userRole = searchParams.get('user_role') || searchParams.get('role') || 'admin'
+
+    if (!id) {
+      try {
+        const body = await request.json()
+        id = body?.id
+        if (body?.reason) reason = body.reason
+        if (body?.user_name) userName = body.user_name
+        if (body?.user_role) userRole = body.user_role
+      } catch (e) {
+        // silent
+      }
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Order id is required' }, { status: 400 })
+    }
+
+    // Lookup existing order
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id, order_number, table_id, status')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existingOrder) {
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 })
+    }
+
+    // Update order status to cancelled
+    const { data: updatedOrder, error } = await supabase
+      .from('orders')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+
+    // Free table if associated
+    if (existingOrder.table_id) {
+      const { data: activeOrders } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('table_id', existingOrder.table_id)
+        .not('status', 'in', '(completed,cancelled,paid)')
+
+      if (!activeOrders || activeOrders.length === 0) {
+        await supabase.from('tables').update({ status: 'available' }).eq('id', existingOrder.table_id)
+      }
+    }
+
+    const orderNumStr = existingOrder.order_number || id
+    const logDesc = `Order #${orderNumStr} was removed / cancelled (${reason})`
+
+    await logOrderHistory({
+      orderId: id,
+      previousStatus: existingOrder.status,
+      newStatus: 'cancelled',
+      note: logDesc,
+      changedBy: userName,
+    })
+
+    await logAction({
+      action_type: 'ORDER_CANCELLED',
+      description: logDesc,
+      performed_by: userName,
+      role: userRole,
+      target_id: id,
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: `Order #${orderNumStr} removed successfully`,
+      data: updatedOrder,
+    })
+  } catch (error) {
+    console.error('Delete order error:', error)
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Failed to delete order' },
       { status: 500 }
     )
   }

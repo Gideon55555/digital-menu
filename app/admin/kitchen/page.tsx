@@ -17,6 +17,7 @@ import {
   Bell,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react'
 
 type KitchenType = 'food' | 'drinks'
@@ -147,6 +148,31 @@ export default function KitchenPage() {
       setRefreshing(false)
     }
   }, [orders.length, isAmharic])
+
+  const handleCancelOrder = async (orderId: string, orderNumber?: string) => {
+    const numStr = orderNumber ? (orderNumber.startsWith('order-') ? orderNumber : `#${orderNumber}`) : orderId
+    const confirmText = isAmharic
+      ? `እርግጠኛ ነዎት ትዕዛዝ ${numStr} መሰረዝ/ማስወገድ ይፈልጋሉ?`
+      : `Are you sure you want to remove/cancel Order ${numStr}?`
+
+    if (!window.confirm(confirmText)) return
+
+    try {
+      setUpdatingOrder(orderId)
+      const response = await fetch(`/api/orders?id=${orderId}&reason=${encodeURIComponent('Cancelled from Kitchen')}&user_role=kitchen`, {
+        method: 'DELETE',
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to cancel order')
+      }
+      await loadOrders(true)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to cancel order')
+    } finally {
+      setUpdatingOrder(null)
+    }
+  }
 
   useEffect(() => {
     loadOrders()
@@ -430,6 +456,7 @@ export default function KitchenPage() {
             actionLabel={isAmharic ? 'ማዘጋጀት ጀምር' : 'Start Preparing'}
             actionIcon={<Play size={18} />}
             onAction={(id) => updateKitchenStatus(id, 'preparing')}
+            onCancelOrder={handleCancelOrder}
             statusLabel={isAmharic ? 'ይጠብቃል' : 'Waiting'}
             isAmharic={isAmharic}
             waiting
@@ -449,6 +476,7 @@ export default function KitchenPage() {
             actionLabel={isAmharic ? 'ተዘጋጅቷል' : 'Mark Ready'}
             actionIcon={<CheckCircle size={18} />}
             onAction={(id) => updateKitchenStatus(id, 'ready')}
+            onCancelOrder={handleCancelOrder}
             statusLabel={isAmharic ? 'በዝግጅት ላይ' : 'Preparing'}
             isAmharic={isAmharic}
           />
@@ -472,6 +500,7 @@ type KitchenSectionProps = {
   actionLabel: string
   actionIcon: ReactNode
   onAction: (id: string) => void
+  onCancelOrder?: (id: string, num?: string) => void
   statusLabel: string
   isAmharic: boolean
   waiting?: boolean
@@ -505,6 +534,7 @@ function KitchenSection(props: KitchenSectionProps) {
               actionLabel={props.actionLabel}
               actionIcon={props.actionIcon}
               onAction={() => props.onAction(order.id)}
+              onCancel={props.onCancelOrder ? () => props.onCancelOrder!(order.id, order.order_number) : undefined}
               statusLabel={props.statusLabel}
               isAmharic={props.isAmharic}
             />
@@ -524,6 +554,7 @@ type OrderCardProps = {
   actionLabel: string
   actionIcon: ReactNode
   onAction: () => void
+  onCancel?: () => void
   statusLabel: string
   isAmharic: boolean
 }
@@ -537,6 +568,7 @@ function OrderCard({
   actionLabel,
   actionIcon,
   onAction,
+  onCancel,
   statusLabel,
   isAmharic,
 }: OrderCardProps) {
@@ -558,15 +590,27 @@ function OrderCard({
           </div>
         </div>
 
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            statusLabel === 'Preparing' || statusLabel === 'በዝግጅት ላይ'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-yellow-100 text-yellow-700'
-          }`}
-        >
-          {statusLabel}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              statusLabel === 'Preparing' || statusLabel === 'በዝግጅት ላይ'
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-yellow-100 text-yellow-700'
+            }`}
+          >
+            {statusLabel}
+          </span>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              disabled={updating}
+              title={isAmharic ? 'ትዕዛዝ ሰርዝ (X)' : 'Remove Order (X)'}
+              className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-5">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { getAdminAuth } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
@@ -19,6 +19,7 @@ import {
   Upload,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from 'lucide-react';
 import { compressReceiptImage } from '@/lib/utils/image';
 import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
@@ -361,9 +362,14 @@ export default function OrdersPage() {
       return;
     }
 
+    const targetOrder = orders.find((o) => o.id === orderId);
+    const orderNumStr = targetOrder ? (targetOrder.order_number.startsWith('order-') ? targetOrder.order_number : `#${targetOrder.order_number}`) : orderId;
+
     const confirmed =
       window.confirm(
-        'Are you sure you want to cancel this order?'
+        isAmharic
+          ? `እርግጠኛ ነዎት ትዕዛዝ ${orderNumStr} መሰረዝ/ማስወገድ ይፈልጋሉ?`
+          : `Are you sure you want to remove / cancel Order ${orderNumStr}?`
       );
 
     if (!confirmed) {
@@ -374,17 +380,9 @@ export default function OrdersPage() {
       setProcessingOrderId(orderId);
 
       const response = await fetch(
-        '/api/orders',
+        `/api/orders?id=${orderId}&reason=${encodeURIComponent('Removed by staff')}&user_role=${currentRole}`,
         {
-          method: 'PUT',
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify({
-            id: orderId,
-            status: 'cancelled',
-          }),
+          method: 'DELETE',
         }
       );
 
@@ -408,6 +406,7 @@ export default function OrdersPage() {
               order.id !== orderId
           )
       );
+      await loadOrders(true);
     } catch (error) {
       console.error(
         'Cancel order error:',
@@ -433,8 +432,23 @@ export default function OrdersPage() {
   ) {
     setPaymentOrder(order);
     setPaymentMethod('cash');
+
+    const sameTableOrders = order.table_id
+      ? orders.filter(
+          (o) =>
+            o.table_id === order.table_id &&
+            o.status !== 'completed' &&
+            o.status !== 'paid' &&
+            o.status !== 'cancelled'
+        )
+      : [order];
+
+    const defaultAmount = sameTableOrders.length > 1
+      ? sameTableOrders.reduce((sum, o) => sum + Number(o.total || 0), 0)
+      : Number(order.total || 0);
+
     setPaymentAmount(
-      Number(order.total).toFixed(2)
+      defaultAmount.toFixed(2)
     );
     setPaymentError('');
     setTipAmount('');
@@ -462,7 +476,7 @@ export default function OrdersPage() {
   // RECORD PAYMENT & CLOSE
   // =========================================================
 
-  async function recordPaymentAndClose() {
+  async function recordPaymentAndClose(targetOrderIds?: string[], customAmount?: number) {
     if (
       !paymentOrder ||
       processingOrderId
@@ -470,12 +484,8 @@ export default function OrdersPage() {
       return;
     }
 
-    const amount =
-      Number(paymentAmount);
-
-    const total =
-      Number(paymentOrder.total);
-
+    const targetIds = targetOrderIds && targetOrderIds.length > 0 ? targetOrderIds : [paymentOrder.id];
+    const amount = customAmount !== undefined ? customAmount : Number(paymentAmount);
     const tip = Number(tipAmount) || 0;
 
     // -------------------------------------------------------
@@ -488,19 +498,6 @@ export default function OrdersPage() {
     ) {
       setPaymentError(
         'Please enter a valid payment amount.'
-      );
-
-      return;
-    }
-
-    if (
-      Math.abs(amount - total) >
-      0.01
-    ) {
-      setPaymentError(
-        `Payment amount must be ${total.toFixed(
-          2
-        )} ETB.`
       );
 
       return;
@@ -528,6 +525,7 @@ export default function OrdersPage() {
           },
           body: JSON.stringify({
             id: paymentOrder.id,
+            ids: targetIds,
             action:
               'record_payment',
             payment_method:
@@ -568,8 +566,7 @@ export default function OrdersPage() {
           (currentOrders) =>
             currentOrders.filter(
               (order) =>
-                order.id !==
-                paymentOrder.id
+                !targetIds.includes(order.id)
             )
         );
       }
@@ -940,6 +937,7 @@ export default function OrdersPage() {
       {paymentOrder && (
         <PaymentModal
           order={paymentOrder}
+          allOrders={orders}
           paymentMethod={paymentMethod}
           setPaymentMethod={
             setPaymentMethod
@@ -1077,6 +1075,19 @@ function OrderCard({
               {Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancel(order.id);
+            }}
+            disabled={processing}
+            title={isAmharic ? 'ትዕዛዝ ሰርዝ (X)' : 'Remove / Cancel Order'}
+            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+          >
+            <X size={18} />
+          </button>
 
           <button
             type="button"
@@ -1355,6 +1366,7 @@ function OrderItemRow({
 
 function PaymentModal({
   order,
+  allOrders,
   paymentMethod,
   setPaymentMethod,
   paymentAmount,
@@ -1371,6 +1383,7 @@ function PaymentModal({
   onConfirm,
 }: {
   order: Order;
+  allOrders?: Order[];
 
   paymentMethod: PaymentMethod;
 
@@ -1408,7 +1421,7 @@ function PaymentModal({
 
   onCancel: () => void;
 
-  onConfirm: () => void;
+  onConfirm: (targetOrderIds?: string[], customAmount?: number) => void;
 }) {
   const { language, t } = useAdminLanguage();
 
@@ -1429,9 +1442,52 @@ function PaymentModal({
     }
   };
 
-  const parsedOrderTotal = Number(order.total) || 0;
+  const sameTableOrders = useMemo(() => {
+    if (!order.table_id) return [order];
+    return (allOrders || []).filter(
+      (o) =>
+        o.table_id === order.table_id &&
+        o.status !== 'completed' &&
+        o.status !== 'paid' &&
+        o.status !== 'cancelled'
+    );
+  }, [order, allOrders]);
+
+  const combinedTableTotal = useMemo(() => {
+    return sameTableOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  }, [sameTableOrders]);
+
+  const hasMultipleTableOrders = sameTableOrders.length > 1;
+
+  const unfinishedOrders = useMemo(() => {
+    return sameTableOrders.filter((o) =>
+      ['pending', 'submitted', 'confirmed', 'preparing'].includes(o.status)
+    );
+  }, [sameTableOrders]);
+
+  const hasUnfinishedOrders = unfinishedOrders.length > 0;
+
+  const [payAllTableOrders, setPayAllTableOrders] = useState<boolean>(hasMultipleTableOrders);
+
+  const currentSelectedOrders = payAllTableOrders ? sameTableOrders : [order];
+  const parsedOrderTotal = payAllTableOrders
+    ? combinedTableTotal
+    : Number(order.total) || 0;
+
   const parsedTip = Number(tipAmount) || 0;
   const grandTotal = parsedOrderTotal + parsedTip;
+
+  const handleTogglePayAll = (payAll: boolean) => {
+    setPayAllTableOrders(payAll);
+    const newTotal = payAll ? combinedTableTotal : Number(order.total) || 0;
+    setPaymentAmount(newTotal.toFixed(2));
+  };
+
+  const handleConfirmSubmission = () => {
+    const targetIds = currentSelectedOrders.map((o) => o.id);
+    const amountVal = Number(paymentAmount);
+    onConfirm(targetIds, amountVal);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1469,6 +1525,77 @@ function PaymentModal({
         {/* CONTENT */}
 
         <div className="p-5 space-y-5">
+
+          {/* UNFINISHED ORDERS WARNING BANNER */}
+          {hasUnfinishedOrders && (
+            <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs font-semibold space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+                <AlertCircle size={16} className="text-amber-600 flex-shrink-0 animate-pulse" />
+                <span>{language === 'am' ? '⚠️ ማስጠንቀቂያ፡ ገና ያልተጠናቀቀ ትዕዛዝ አለ!' : '⚠️ Warning: Unfinished Order on Table!'}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                {language === 'am'
+                  ? `ይህ ጠረጴዛ ገና በዝግጅት ላይ ያሉ ${unfinishedOrders.length} ትዕዛዞች አሉት (${unfinishedOrders.map(o => o.order_number.startsWith('order-') ? o.order_number : '#' + o.order_number).join(', ')})። ሂሳቡን ከመዝጋትዎ በፊት ዝግጅቱን ያረጋግጡ።`
+                  : `This table has ${unfinishedOrders.length} order(s) still in preparation (${unfinishedOrders.map(o => o.order_number.startsWith('order-') ? o.order_number : '#' + o.order_number).join(', ')}). Please verify before closing.`}
+              </p>
+            </div>
+          )}
+
+          {/* COMBINED SAME-TABLE SETTLEMENT SELECTOR */}
+          {hasMultipleTableOrders && (
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  {language === 'am' ? 'የጠረጴዛው ክፍያዎች' : 'Table Combined Settlement'}
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold">
+                  {sameTableOrders.length} {language === 'am' ? 'ትዕዛዞች' : 'Orders'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePayAll(true)}
+                  className={`p-2.5 rounded-lg border text-left transition ${
+                    payAllTableOrders
+                      ? 'border-restaurant-accent bg-restaurant-accent/10 text-restaurant-accent dark:bg-restaurant-accent/20 font-bold'
+                      : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900 text-gray-600 dark:text-gray-400 font-medium'
+                  }`}
+                >
+                  <div>{language === 'am' ? 'ሁሉንም ሰብስብ' : 'Combine All'}</div>
+                  <div className="text-[11px] opacity-80 mt-0.5">{combinedTableTotal.toFixed(2)} ETB</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTogglePayAll(false)}
+                  className={`p-2.5 rounded-lg border text-left transition ${
+                    !payAllTableOrders
+                      ? 'border-restaurant-accent bg-restaurant-accent/10 text-restaurant-accent dark:bg-restaurant-accent/20 font-bold'
+                      : 'border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900 text-gray-600 dark:text-gray-400 font-medium'
+                  }`}
+                >
+                  <div>{language === 'am' ? 'ይህን ብቻ' : 'Single Order'}</div>
+                  <div className="text-[11px] opacity-80 mt-0.5">{Number(order.total).toFixed(2)} ETB</div>
+                </button>
+              </div>
+
+              <div className="space-y-1 pt-2 border-t border-gray-200 dark:border-slate-700 text-xs">
+                {sameTableOrders.map((o) => (
+                  <div key={o.id} className="flex items-center justify-between text-gray-600 dark:text-gray-300">
+                    <span className="font-medium">
+                      {o.order_number.startsWith('order-') ? o.order_number : `#${o.order_number}`}
+                      <span className="text-[10px] text-gray-400 ml-1">({o.status})</span>
+                    </span>
+                    <span className="font-bold text-gray-900 dark:text-white">
+                      {Number(o.total).toFixed(2)} ETB
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* TOTAL & GRAND TOTAL */}
 
@@ -1713,7 +1840,7 @@ function PaymentModal({
           </button>
 
           <button
-            onClick={onConfirm}
+            onClick={handleConfirmSubmission}
             disabled={processing || compressingReceipt}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
           >
