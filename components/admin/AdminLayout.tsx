@@ -380,7 +380,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
 
       {/* Sidebar */}
       <div
-        className={`fixed lg:relative w-64 h-screen bg-white dark:bg-slate-900 border-r border-cream-200 dark:border-slate-800 flex flex-col z-30 transform lg:transform-none transition-transform ${
+        className={`fixed lg:sticky lg:top-0 shrink-0 w-64 h-screen bg-white dark:bg-slate-900 border-r border-cream-200 dark:border-slate-800 flex flex-col z-30 transform lg:transform-none transition-transform ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -449,7 +449,7 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full min-w-0">
         {/* Header */}
-        <div className="bg-white dark:bg-slate-900 border-b border-cream-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-cream-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
           <div className="pl-10 lg:pl-0">
             <h2 className="text-xl font-semibold text-restaurant-text dark:text-white">
               {currentPageTitle}
