@@ -712,6 +712,38 @@ export default function OrdersPage() {
       ? readyOrders
       : pendingConfirmationOrders;
 
+  const [collapsedTables, setCollapsedTables] = useState<Record<string, boolean>>({});
+
+  const toggleTableCollapse = (tableKey: string) => {
+    setCollapsedTables((prev) => ({
+      ...prev,
+      [tableKey]: !prev[tableKey],
+    }));
+  };
+
+  const tableGroups = useMemo(() => {
+    const map = new Map<string, { tableId: string | null; tableName: string; orders: Order[]; totalAmount: number; itemsCount: number }>();
+
+    for (const order of visibleOrders) {
+      const key = order.table_id || 'takeaway';
+      const name = formatTableName(order.table_id, tables, isAmharic);
+      if (!map.has(key)) {
+        map.set(key, {
+          tableId: order.table_id,
+          tableName: name,
+          orders: [],
+          totalAmount: 0,
+          itemsCount: 0,
+        });
+      }
+      const grp = map.get(key)!;
+      grp.orders.push(order);
+      grp.totalAmount += Number(order.total || 0);
+      grp.itemsCount += (order.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+    }
+    return Array.from(map.values());
+  }, [visibleOrders, tables, isAmharic]);
+
   // =========================================================
   // LOADING
   // =========================================================
@@ -934,55 +966,110 @@ export default function OrdersPage() {
 
         </div>
 
-        {/* ORDERS */}
+        {/* ORDERS GROUPED BY TABLES (ACCORDIONS) */}
 
         {visibleOrders.length === 0 ? (
-
           <EmptyState
             type={activeTab}
             isAmharic={isAmharic}
           />
-
         ) : (
+          <div className="space-y-6">
+            {tableGroups.map((group) => {
+              const groupKey = group.tableId || 'takeaway';
+              const isCollapsed = Boolean(collapsedTables[groupKey]);
+              const isTakeaway = !group.tableId;
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              return (
+                <div
+                  key={groupKey}
+                  className="restaurant-card overflow-hidden border border-cream-200 dark:border-slate-800 shadow-sm transition-all"
+                >
+                  {/* TABLE ACCORDION HEADER */}
+                  <div
+                    onClick={() => toggleTableCollapse(groupKey)}
+                    className="p-4 bg-cream-50/80 dark:bg-slate-800/80 hover:bg-cream-100 dark:hover:bg-slate-800 cursor-pointer flex flex-wrap items-center justify-between gap-3 border-b border-cream-200 dark:border-slate-800 transition select-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="p-1 rounded-lg text-stone-500 hover:text-restaurant-accent hover:bg-cream-200 dark:hover:bg-slate-700 transition"
+                      >
+                        {isCollapsed ? <ChevronDown size={22} /> : <ChevronUp size={22} />}
+                      </button>
 
-            {visibleOrders.map(
-              (order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  activeTab={activeTab}
-                  tables={tables}
-                  isAmharic={isAmharic}
-                  processing={
-                    processingOrderId ===
-                    order.id
-                  }
-                  onConfirmAndSend={
-                    confirmAndSend
-                  }
-                  onCancel={
-                    cancelOrder
-                  }
-                  onModifyOrder={(ord) =>
-                    setModifyOrder(ord)
-                  }
-                  onRecordPayment={
-                    openPaymentModal
-                  }
-                  onApprovePayment={
-                    approvePayment
-                  }
-                  onRejectPayment={
-                    rejectPayment
-                  }
-                />
-              )
-            )}
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-10 w-10 rounded-xl bg-restaurant-accent/15 text-restaurant-accent flex items-center justify-center font-bold">
+                          {isTakeaway ? <ShoppingBag size={20} /> : <Table2 size={20} />}
+                        </div>
 
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-serif font-bold text-restaurant-text dark:text-white">
+                              {group.tableName}
+                            </h3>
+                            <span className="px-2.5 py-0.5 rounded-full bg-restaurant-accent text-white text-xs font-bold">
+                              {group.orders.length} {group.orders.length === 1 ? (isAmharic ? 'ትዕዛዝ' : 'Order') : (isAmharic ? 'ትዕዛዞች' : 'Orders')}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500 dark:text-gray-400 font-medium mt-0.5">
+                            {group.itemsCount} {isAmharic ? 'ምግቦች/መጠጦች' : 'items total'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[11px] text-gray-400 block uppercase tracking-wider font-semibold">
+                          {isAmharic ? 'የጠረጴዛው ጠቅላላ ሂሳብ' : 'Table Total'}
+                        </span>
+                        <span className="text-lg font-extrabold text-restaurant-accent font-mono">
+                          {group.totalAmount.toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
+                        </span>
+                      </div>
+
+                      {group.orders.length > 1 && activeTab === 'ready' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPaymentModal(group.orders[0]);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-restaurant-accent hover:bg-restaurant-accent-dark text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                        >
+                          <CreditCard size={14} />
+                          <span>{isAmharic ? 'ሁሉንም ክፍያ ተቀበል' : 'Settle Table'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* TABLE ACCORDION BODY (ORDERS LIST) */}
+                  {!isCollapsed && (
+                    <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {group.orders.map((order) => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          activeTab={activeTab}
+                          tables={tables}
+                          isAmharic={isAmharic}
+                          processing={processingOrderId === order.id}
+                          onConfirmAndSend={confirmAndSend}
+                          onCancel={cancelOrder}
+                          onModifyOrder={(ord) => setModifyOrder(ord)}
+                          onRecordPayment={openPaymentModal}
+                          onApprovePayment={approvePayment}
+                          onRejectPayment={rejectPayment}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-
         )}
 
       </div>
@@ -1045,7 +1132,7 @@ export default function OrdersPage() {
 }
 
 /* ============================================================
-   ORDER CARD
+   ORDER CARD (Inside Table Accordion)
 ============================================================ */
 
 function OrderCard({
@@ -1091,297 +1178,164 @@ function OrderCard({
   ) => void;
   isAmharic?: boolean;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const isPendingApproval = order.payment?.payment_status === 'PENDING' || order.status === 'payment_pending';
-  const tableName = formatTableName(order.table_id, tables, isAmharic);
   const orderNumberStr = order.order_number.startsWith('order-') ? order.order_number : `#${order.order_number}`;
 
   return (
-    <div className={`restaurant-card overflow-hidden transition-all shadow-xs ${isPendingApproval ? 'ring-2 ring-amber-400 dark:ring-amber-600' : ''}`}>
+    <div className={`rounded-2xl border border-stone-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-850 p-4 space-y-3 flex flex-col justify-between transition-all shadow-xs hover:border-restaurant-accent ${isPendingApproval ? 'ring-2 ring-amber-400 dark:ring-amber-600' : ''}`}>
+      
+      {/* TOP ROW: Small Order Number & Badges */}
+      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-slate-800 pb-2.5">
+        <div className="flex items-center gap-2">
+          {/* Small Order Number */}
+          <span className="text-xs font-mono font-bold text-stone-600 dark:text-stone-300 bg-stone-200/70 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+            {orderNumberStr}
+          </span>
 
-      {/* ACCORDION HEADER BAR (Always Visible) */}
-      <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="p-4 bg-white dark:bg-slate-900 hover:bg-cream-50/70 dark:hover:bg-slate-800/60 cursor-pointer flex items-center justify-between gap-3 border-b border-cream-200 dark:border-slate-800 transition select-none"
-      >
-        <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            className="p-1 rounded-lg text-gray-400 hover:text-restaurant-accent hover:bg-cream-100 dark:hover:bg-slate-800 transition"
-          >
-            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </button>
+          {activeTab === 'new' ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 text-[10px] font-bold">
+              <Clock size={10} />
+              {isAmharic ? 'አዲስ' : 'New'}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">
+              <PackageCheck size={10} />
+              {isAmharic ? 'ተዘጋጅቷል' : 'Ready'}
+            </span>
+          )}
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold text-restaurant-text dark:text-white">
-                {orderNumberStr}
-              </span>
-
-              {activeTab === 'new' ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 text-[11px] font-bold">
-                  <Clock size={11} />
-                  {isAmharic ? 'አዲስ' : 'New'}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-bold">
-                  <PackageCheck size={11} />
-                  {isAmharic ? 'ተዘጋጅቷል' : 'Ready'}
-                </span>
-              )}
-
-              {isPendingApproval && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[11px] font-bold animate-pulse">
-                  {isAmharic ? 'ማረጋገጫ' : 'Approval'}
-                </span>
-              )}
-            </div>
-
-            <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-0.5 flex items-center gap-2">
-              <span>{isAmharic ? 'ጠረጴዛ:' : 'Table:'} <strong className="text-gray-900 dark:text-white">{tableName}</strong></span>
-              <span>•</span>
-              <span className="text-gray-400">{(order.items || []).length} {isAmharic ? 'እቃዎች' : 'items'}</span>
-            </div>
-          </div>
+          {isPendingApproval && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold animate-pulse">
+              {isAmharic ? 'ማረጋገጫ' : 'Approval'}
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="text-right">
-            <span className="text-xs text-gray-400 block">{isAmharic ? 'ጠቅላላ' : 'Total'}</span>
-            <span className="text-base font-extrabold text-restaurant-accent">
-              {Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
-            </span>
-          </div>
-
+        {/* Action icons: Edit & Cancel */}
+        <div className="flex items-center gap-1">
           {onModifyOrder && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onModifyOrder(order);
-              }}
+              onClick={() => onModifyOrder(order)}
               disabled={processing}
-              title={isAmharic ? 'ትዕዛዝ አስተካክል (Modify Order)' : 'Modify Order Items (Add/Remove Foods or Drinks)'}
-              className="p-1.5 rounded-lg text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition"
+              title={isAmharic ? 'ትዕዛዝ አስተካክል (Modify)' : 'Modify Order Items (Add/Remove)'}
+              className="p-1 rounded-lg text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-950/60 transition"
             >
-              <Pencil size={17} />
+              <Pencil size={15} />
             </button>
           )}
 
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCancel(order.id);
-            }}
+            onClick={() => onCancel(order.id)}
             disabled={processing}
-            title={isAmharic ? 'ትዕዛዝ ሰርዝ (X)' : 'Remove / Cancel Order'}
-            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition"
+            title={isAmharic ? 'ትዕዛዝ ሰርዝ' : 'Remove / Cancel Order'}
+            className="p-1 rounded-lg text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 transition"
           >
-            <X size={18} />
-          </button>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            className="text-xs font-bold text-gray-500 hover:text-restaurant-accent px-2 py-1 rounded-lg border border-cream-200 dark:border-slate-800 hidden sm:block"
-          >
-            {isExpanded ? (isAmharic ? 'ዘጋ' : 'Hide') : (isAmharic ? 'ዝርዝር' : 'Details')}
+            <X size={16} />
           </button>
         </div>
       </div>
 
-      {/* QUICK ACTIONS BAR (Visible when collapsed) */}
-      {!isExpanded && (
-        <div className="p-3 bg-cream-50/50 dark:bg-slate-850 flex items-center justify-between gap-2 border-b border-cream-100 dark:border-slate-800">
-          <span className="text-xs text-gray-400 px-1">
-            {formatTime(order.created_at)}
-          </span>
+      {/* ITEMS LIST (PROMINENT DISPLAY) */}
+      <div className="space-y-2 flex-1 min-h-[70px]">
+        {!order.items || order.items.length === 0 ? (
+          <p className="text-xs text-red-500 py-2">
+            {isAmharic ? 'ምንም እቃ የለም።' : 'No items in this order.'}
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {order.items.map((item) => (
+              <OrderItemRow
+                key={item.id}
+                item={item}
+                isAmharic={isAmharic}
+              />
+            ))}
+          </div>
+        )}
 
-          <div className="flex items-center gap-2">
-            {isPendingApproval ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onApprovePayment) onApprovePayment(order.id);
-                }}
-                disabled={processing}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-xs disabled:opacity-50"
-              >
-                <Check size={14} />
-                <span>{isAmharic ? 'አጽድቅ' : 'Approve'}</span>
-              </button>
-            ) : activeTab === 'new' ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onConfirmAndSend(order.id);
-                }}
-                disabled={processing}
-                className="px-3.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
-              >
-                <Check size={14} />
-                <span>{isAmharic ? 'አረጋግጥና ላክ' : 'Confirm & Send'}</span>
-              </button>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRecordPayment(order);
-                }}
-                disabled={processing}
-                className="px-3.5 py-1.5 rounded-lg bg-restaurant-accent hover:bg-restaurant-accent-dark text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50"
-              >
-                <CreditCard size={14} />
-                <span>{isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}</span>
-              </button>
+        {order.notes && (
+          <div className="p-2 rounded-lg bg-amber-50 dark:bg-slate-800/80 border border-amber-200 dark:border-slate-700 text-[11px] text-stone-700 dark:text-stone-300">
+            <strong className="text-amber-800 dark:text-amber-400">{isAmharic ? 'ማስታወሻ:' : 'Note:'}</strong> {order.notes}
+          </div>
+        )}
+      </div>
+
+      {/* WAITER PAYMENT APPROVAL BANNER IF PENDING */}
+      {isPendingApproval && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-300">
+            <span className="flex items-center gap-1">
+              <Clock size={12} className="animate-pulse text-amber-600" />
+              {isAmharic ? 'በአስተናጋጅ ተልኳል' : 'Waiter Submitted'}
+            </span>
+            {order.payment?.payment_method && (
+              <span className="px-1.5 py-0.5 rounded bg-amber-200/80 text-[10px] uppercase">
+                {order.payment.payment_method}
+              </span>
             )}
+          </div>
+
+          {order.payment?.receipt_image && (
+            <div className="relative h-24 w-full rounded overflow-hidden border border-amber-300 bg-black/5 flex items-center justify-center">
+              <img src={order.payment.receipt_image} alt="Receipt proof" className="max-h-full max-w-full object-contain" />
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => onApprovePayment && onApprovePayment(order.id)}
+              disabled={processing}
+              className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-xs disabled:opacity-50"
+            >
+              <Check size={14} />
+              {isAmharic ? 'አጽድቅ' : 'Approve'}
+            </button>
+            <button
+              onClick={() => onRejectPayment && onRejectPayment(order.id)}
+              disabled={processing}
+              className="py-1.5 px-2.5 rounded-lg border border-red-300 text-red-600 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
       )}
 
-      {/* EXPANDABLE ACCORDION CONTENT */}
-      {isExpanded && (
-        <div className="space-y-4 p-5 bg-white dark:bg-slate-900 border-t border-cream-100 dark:border-slate-800">
-          {/* PENDING WAITER PAYMENT APPROVAL BANNER */}
-          {isPendingApproval && (
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                  <Clock size={14} className="text-amber-600 animate-pulse" />
-                  {isAmharic ? 'በአስተናጋጅ ተልኳል - ማረጋገጫ ይጠብቃል' : 'Submitted by Waiter - Pending Approval'}
-                </span>
-                {order.payment?.payment_method && (
-                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 uppercase">
-                    {order.payment.payment_method}
-                  </span>
-                )}
-              </div>
+      {/* BOTTOM FOOTER: TOTAL & ACTION BUTTON */}
+      <div className="pt-2.5 border-t border-stone-200 dark:border-slate-800 flex items-center justify-between gap-2">
+        <div>
+          <span className="text-[10px] text-stone-400 block uppercase font-bold">{isAmharic ? 'የትዕዛዝ ዋጋ' : 'Order Total'}</span>
+          <span className="text-sm font-extrabold text-restaurant-accent font-mono">
+            {Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
+          </span>
+        </div>
 
-              {order.payment?.receipt_image && (
-                <div className="relative h-32 w-full rounded-lg overflow-hidden border border-amber-300 dark:border-amber-800 bg-black/5 dark:bg-black/40 flex items-center justify-center p-1">
-                  <img
-                    src={order.payment.receipt_image}
-                    alt="Payment receipt proof"
-                    className="max-h-full max-w-full object-contain rounded"
-                  />
-                </div>
-              )}
-
-              {Number(order.payment?.tip_amount || 0) > 0 && (
-                <div className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center justify-between">
-                  <span>{isAmharic ? 'የተሰጠ ጉርሻ (ቲፕ):' : 'Waiter Tip:'}</span>
-                  <span className="font-bold text-amber-700 dark:text-amber-300">+{Number(order.payment?.tip_amount).toFixed(2)} ETB</span>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={() => onApprovePayment && onApprovePayment(order.id)}
-                  disabled={processing}
-                  className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50"
-                >
-                  <Check size={15} />
-                  {isAmharic ? 'አጽድቅና ጨርስ' : 'Approve & Close'}
-                </button>
-
-                <button
-                  onClick={() => onRejectPayment && onRejectPayment(order.id)}
-                  disabled={processing}
-                  className="py-2 px-3 rounded-lg border border-red-300 hover:bg-red-50 text-red-700 dark:border-red-900 dark:hover:bg-red-950/40 text-xs font-bold transition flex items-center justify-center gap-1 disabled:opacity-50"
-                >
-                  <X size={15} />
-                  {isAmharic ? 'ውድቅ አድርግ' : 'Reject'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ORDER ITEMS TABLE */}
+        {!isPendingApproval && (
           <div>
-            <p className="text-xs uppercase tracking-wide font-semibold text-gray-400 mb-2">
-              {isAmharic ? 'የታዘዙ ምግቦች ዝርዝር' : 'Ordered Items'}
-            </p>
-
-            {!order.items || order.items.length === 0 ? (
-              <div className="py-4 text-center text-xs text-red-500">
-                {isAmharic ? 'ምንም እቃ የለም።' : 'No items in this order.'}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {order.items.map((item) => (
-                  <OrderItemRow
-                    key={item.id}
-                    item={item}
-                    isAmharic={isAmharic}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* NOTE */}
-          {order.notes && (
-            <div className="p-3 rounded-xl bg-cream-50 dark:bg-slate-800 border border-cream-200 dark:border-slate-700">
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                {isAmharic ? 'ማስታወሻ' : 'Order Note'}
-              </p>
-              <p className="mt-0.5 text-xs text-gray-700 dark:text-gray-200">
-                {order.notes}
-              </p>
-            </div>
-          )}
-
-          {/* TIME & ID SUMMARY */}
-          <div className="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-cream-100 dark:border-slate-800">
-            <span>{isAmharic ? 'የተመዘገበበት ሰዓት:' : 'Time:'} {formatTime(order.created_at)}</span>
-            <span>ID: {order.id.slice(0, 8)}...</span>
-          </div>
-
-          {/* ACTIONS */}
-          <div className="pt-2 border-t border-gray-200 dark:border-slate-800">
             {activeTab === 'new' ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onConfirmAndSend(order.id)}
-                  disabled={processing}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white text-xs font-bold hover:bg-green-700 disabled:opacity-50 transition"
-                >
-                  <Check size={16} />
-                  {processing
-                    ? isAmharic
-                      ? 'በመላክ ላይ...'
-                      : 'Sending...'
-                    : isAmharic
-                    ? 'አረጋግጥና ላክ'
-                    : 'Confirm & Send'}
-                </button>
-
-                <button
-                  onClick={() => onCancel(order.id)}
-                  disabled={processing}
-                  title={isAmharic ? 'ትዕዛዝ ሰርዝ' : 'Cancel order'}
-                  className="px-3.5 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 disabled:opacity-50 transition"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+              <button
+                onClick={() => onConfirmAndSend(order.id)}
+                disabled={processing}
+                className="px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 shadow-xs"
+              >
+                <Check size={14} />
+                <span>{isAmharic ? 'አረጋግጥና ላክ' : 'Send'}</span>
+              </button>
             ) : (
               <button
                 onClick={() => onRecordPayment(order)}
                 disabled={processing}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-restaurant-accent text-white text-xs font-bold hover:bg-restaurant-accent-dark disabled:opacity-50 transition"
+                className="px-3 py-1.5 rounded-xl bg-restaurant-accent hover:bg-restaurant-accent-dark text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 shadow-xs"
               >
-                <CreditCard size={16} />
-                {isAmharic ? 'ክፍያ ተቀበል' : 'Record Payment'}
+                <CreditCard size={14} />
+                <span>{isAmharic ? 'ክፍያ ተቀበል' : 'Pay'}</span>
               </button>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

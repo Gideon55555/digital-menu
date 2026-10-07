@@ -614,6 +614,58 @@ function OrdersReportPageContent() {
     }
   }, [summary])
 
+  // Items Sold Summary calculation
+  const soldItemsSummary = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; quantity: number; totalRevenue: number }>()
+    for (const order of filteredOrders) {
+      for (const item of order.items || []) {
+        const nameStr = itemName(item)
+        const key = item.menu_item_id || nameStr
+        const qty = Number(item.quantity || 1)
+        const sub = Number(item.subtotal || (item.unit_price || item.price || 0) * qty)
+
+        if (!map.has(key)) {
+          map.set(key, { id: key, name: nameStr, quantity: qty, totalRevenue: sub })
+        } else {
+          const existing = map.get(key)!
+          existing.quantity += qty
+          existing.totalRevenue += sub
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
+  }, [filteredOrders, language])
+
+  // Group closed orders by Table for Report Accordions
+  const reportTableGroups = useMemo(() => {
+    const map = new Map<string, { tableName: string; orders: Order[]; totalRevenue: number; itemsCount: number }>()
+    for (const order of filteredOrders) {
+      const name = order.table_name || (language === 'am' ? 'ፓኮ / መውሰጃ' : 'Takeaway / Delivery')
+      if (!map.has(name)) {
+        map.set(name, {
+          tableName: name,
+          orders: [],
+          totalRevenue: 0,
+          itemsCount: 0,
+        })
+      }
+      const grp = map.get(name)!
+      grp.orders.push(order)
+      grp.totalRevenue += Number(order.total || 0)
+      grp.itemsCount += (order.items || []).reduce((sum, it) => sum + (Number(it.quantity) || 1), 0)
+    }
+    return Array.from(map.values())
+  }, [filteredOrders, language])
+
+  const [collapsedReportTables, setCollapsedReportTables] = useState<Record<string, boolean>>({})
+
+  const toggleReportTableCollapse = (name: string) => {
+    setCollapsedReportTables((prev) => ({
+      ...prev,
+      [name]: !prev[name],
+    }))
+  }
+
   /*
    * =========================================================
    * LOADING STATE
@@ -1367,7 +1419,60 @@ function OrdersReportPageContent() {
         )}
       </div>
 
-      {/* ORDERS MANAGEMENT SECTION */}
+      {/* 📦 ITEMS SOLD SUMMARY */}
+      <div className="restaurant-card p-5 border border-stone-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-200 dark:border-slate-800 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-restaurant-accent/15 text-restaurant-accent font-bold">
+                <UtensilsCrossed size={18} />
+              </div>
+              <h2 className="text-lg font-serif font-bold text-stone-900 dark:text-white">
+                {language === 'am' ? 'የተሸጡ ምግቦች እና መጠጦች ዝርዝር' : 'Items Sold Summary'}
+              </h2>
+            </div>
+            <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5 font-medium">
+              {language === 'am'
+                ? 'በተመረጠው የጊዜ ገደብ ውስጥ የተሸጡ ምግቦች እና መጠጦች ጠቅላላ ብዛት'
+                : 'Total quantities and revenue generated per menu item for this period'}
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-restaurant-accent/15 text-restaurant-accent text-xs font-extrabold self-start sm:self-auto border border-restaurant-accent/30">
+            {soldItemsSummary.length} {language === 'am' ? 'ዓይነቶች የተሸጡ' : 'Unique Items Sold'}
+          </span>
+        </div>
+
+        {soldItemsSummary.length === 0 ? (
+          <p className="text-xs text-stone-500 py-4 text-center">
+            {language === 'am' ? 'ምንም የተሸጠ ምግብ ወይም መጠጥ የለም።' : 'No items sold in this period.'}
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {soldItemsSummary.map((item) => (
+              <div
+                key={item.id}
+                className="p-3.5 rounded-2xl bg-stone-50/70 dark:bg-slate-800/60 border border-stone-200 dark:border-slate-700/80 flex items-center justify-between gap-3 shadow-2xs hover:border-restaurant-accent transition"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                    {item.name}
+                  </p>
+                  <p className="text-[11px] font-mono font-semibold text-stone-600 dark:text-stone-300 mt-0.5">
+                    {money(item.totalRevenue)}
+                  </p>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <span className="inline-block px-2.5 py-1 rounded-xl bg-restaurant-accent text-white text-xs font-extrabold shadow-xs">
+                    {item.quantity}×
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ORDERS MANAGEMENT SECTION GROUPED BY TABLES (ACCORDIONS) */}
       <div className="space-y-4">
         {/* Section Header & Filters */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1439,7 +1544,7 @@ function OrdersReportPageContent() {
           </div>
         </div>
 
-        {/* Orders List */}
+        {/* Table Accordions List */}
         {filteredOrders.length === 0 ? (
           <div className="restaurant-card p-12 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 dark:bg-slate-800 text-stone-500 mx-auto mb-3">
@@ -1455,344 +1560,404 @@ function OrdersReportPageContent() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredOrders.map((order) => {
-              const expanded = expandedOrderId === order.id
-              const paymentMethod = (order.payment?.payment_method || 'Unknown').toLowerCase()
-              const paymentAmount = Number(order.payment?.amount || order.total || 0)
-              const itemsCount = (order.items || []).reduce(
-                (sum, it) => sum + (Number(it.quantity) || 1),
-                0
-              )
-
-              const isCash = paymentMethod.includes('cash')
-              const isCbe = paymentMethod.includes('cbe')
-              const isTelebirr = paymentMethod.includes('telebirr')
+          <div className="space-y-4">
+            {reportTableGroups.map((group) => {
+              const isCollapsed = Boolean(collapsedReportTables[group.tableName])
 
               return (
                 <div
-                  key={order.id}
-                  className={`restaurant-card overflow-hidden transition-all duration-200 ${
-                    expanded ? 'ring-2 ring-restaurant-accent shadow-md' : 'hover:border-stone-400'
-                  }`}
+                  key={group.tableName}
+                  className="restaurant-card overflow-hidden border border-stone-200 dark:border-slate-800 shadow-xs transition-all"
                 >
-                  {/* ORDER CARD ROW */}
-                  <button
-                    onClick={() => setExpandedOrderId(expanded ? null : order.id)}
-                    className="w-full p-4 sm:p-5 text-left transition hover:bg-stone-50/70 dark:hover:bg-slate-800/50"
+                  {/* TABLE ACCORDION HEADER */}
+                  <div
+                    onClick={() => toggleReportTableCollapse(group.tableName)}
+                    className="p-4 bg-stone-100/70 dark:bg-slate-800/80 hover:bg-stone-100 dark:hover:bg-slate-800 cursor-pointer flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 dark:border-slate-800 transition select-none"
                   >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      {/* Left Side: Order details */}
-                      <div className="flex items-center gap-3.5">
-                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-restaurant-accent/15 text-restaurant-accent font-bold">
-                          <Receipt size={20} />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="p-1 rounded-lg text-stone-500 hover:text-restaurant-accent hover:bg-stone-200 dark:hover:bg-slate-700 transition"
+                      >
+                        {isCollapsed ? <ChevronDown size={22} /> : <ChevronUp size={22} />}
+                      </button>
+
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-10 w-10 rounded-xl bg-restaurant-accent/15 text-restaurant-accent flex items-center justify-center font-bold">
+                          <TableIcon size={20} />
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-sm sm:text-base text-stone-900 dark:text-white">
-                              {order.order_number.startsWith('order-')
-                                ? order.order_number
-                                : `#${order.order_number}`}
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-serif font-bold text-stone-900 dark:text-white">
+                              {group.tableName}
                             </h3>
-
-                            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                              {t.paid}
+                            <span className="px-2.5 py-0.5 rounded-full bg-stone-800 text-white dark:bg-slate-700 text-xs font-bold">
+                              {group.orders.length} {group.orders.length === 1 ? (language === 'am' ? 'ትዕዛዝ ተከናውኗል' : 'order performed') : (language === 'am' ? 'ትዕዛዞች ተከናውነዋል' : 'orders performed')}
                             </span>
-
-                            <span className="rounded-full bg-stone-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-slate-700">
-                              {order.table_name || t.takeaway}
-                            </span>
-
-                            {order.waiter_name && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-950 px-2.5 py-0.5 text-xs font-bold text-purple-900 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
-                                <User size={12} /> {order.waiter_name}
-                              </span>
-                            )}
                           </div>
-
-                          {/* Subtitle row with HIGH-CONTRAST TEXT */}
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs font-semibold text-stone-600 dark:text-stone-300">
-                            <span>{t.orderedTime}: <strong className="text-stone-800 dark:text-white">{formatTime(order.timeline?.ordered_at || order.created_at)}</strong></span>
-                            <span>•</span>
-                            <span>{t.paidTime}: <strong className="text-stone-800 dark:text-white">{formatTime(order.timeline?.paid_at || order.updated_at)}</strong></span>
-                            <span>•</span>
-                            <span>{itemsCount} {itemsCount === 1 ? t.singleItemCount : t.itemsCount}</span>
-
-                            {order.timeline?.cooking_duration && (
-                              <>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-bold text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                                  <Timer size={12} /> {order.timeline.cooking_duration}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Side: Payment amount & Expand Chevron */}
-                      <div className="flex items-center justify-between md:justify-end gap-4 pt-2 md:pt-0 border-t md:border-t-0 border-stone-200 dark:border-slate-800">
-                        <div className="text-left md:text-right">
-                          <span
-                            className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${
-                              isCash
-                                ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
-                                : isCbe
-                                  ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200 border-sky-300 dark:border-sky-800'
-                                  : isTelebirr
-                                    ? 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-800'
-                                    : 'bg-stone-100 text-stone-900 dark:bg-slate-800 dark:text-stone-200 border-stone-300 dark:border-slate-700'
-                            }`}
-                          >
-                            {isCash ? t.cash : isCbe ? t.cbe : isTelebirr ? t.telebirr : (order.payment?.payment_method || 'Settled')}
-                          </span>
-
-                          <p className="mt-0.5 text-base sm:text-lg font-bold text-stone-900 dark:text-white">
-                            {money(paymentAmount)}
+                          <p className="text-xs text-stone-600 dark:text-stone-300 font-medium mt-0.5">
+                            {group.itemsCount} {language === 'am' ? 'ምግቦች/መጠጦች በድምሩ' : 'items sold at this table'}
                           </p>
-                        </div>
-
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300 group-hover:text-restaurant-accent transition">
-                          {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                         </div>
                       </div>
                     </div>
-                  </button>
 
-                  {/* EXPANDED DETAILS DRAWER */}
-                  {expanded && (
-                    <div className="border-t border-stone-200 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-850 p-5 sm:p-6 space-y-6 animate-fade-in">
-                      {/* KITCHEN & ORDER LIFECYCLE STEPPER */}
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
-                            <Clock size={14} className="text-restaurant-accent" />
-                            {t.lifecycleTitle}
-                          </h4>
-                          <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
-                            {t.tables}: <strong className="text-stone-900 dark:text-white">{order.table_name || t.takeaway}</strong>
-                          </span>
-                        </div>
+                    <div className="text-right">
+                      <span className="text-[11px] text-stone-500 dark:text-stone-400 block uppercase tracking-wider font-semibold">
+                        {language === 'am' ? 'የጠረጴዛው ገቢ' : 'Table Revenue'}
+                      </span>
+                      <span className="text-base font-extrabold text-restaurant-accent font-mono">
+                        {money(group.totalRevenue)}
+                      </span>
+                    </div>
+                  </div>
 
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-                          <TimelineItem
-                            label={t.stepOrdered}
-                            time={formatTime(order.timeline?.ordered_at || order.created_at)}
-                            sub={formatDate(order.timeline?.ordered_at || order.created_at)}
-                            icon={<Clock size={15} />}
-                          />
+                  {/* TABLE ACCORDION BODY (LIST OF ORDERS AT THIS TABLE) */}
+                  {!isCollapsed && (
+                    <div className="p-3 sm:p-4 space-y-3 bg-stone-50/40 dark:bg-slate-900">
+                      {group.orders.map((order) => {
+                        const expanded = expandedOrderId === order.id
+                        const paymentMethod = (order.payment?.payment_method || 'Unknown').toLowerCase()
+                        const paymentAmount = Number(order.payment?.amount || order.total || 0)
+                        const itemsCount = (order.items || []).reduce(
+                          (sum, it) => sum + (Number(it.quantity) || 1),
+                          0
+                        )
 
-                          <TimelineItem
-                            label={t.stepToKitchen}
-                            time={
-                              order.timeline?.sent_to_kitchen_at
-                                ? formatTime(order.timeline.sent_to_kitchen_at)
-                                : 'Auto-sent'
-                            }
-                            icon={<Send size={15} />}
-                          />
+                        const isCash = paymentMethod.includes('cash')
+                        const isCbe = paymentMethod.includes('cbe')
+                        const isTelebirr = paymentMethod.includes('telebirr')
 
-                          <TimelineItem
-                            label={t.stepPreparing}
-                            time={
-                              order.timeline?.preparing_at
-                                ? formatTime(order.timeline.preparing_at)
-                                : 'N/A'
-                            }
-                            icon={<ChefHat size={15} />}
-                          />
+                        return (
+                          <div
+                            key={order.id}
+                            className={`restaurant-card overflow-hidden transition-all duration-200 ${
+                              expanded ? 'ring-2 ring-restaurant-accent shadow-md' : 'hover:border-stone-400'
+                            }`}
+                          >
+                            {/* ORDER CARD ROW */}
+                            <button
+                              onClick={() => setExpandedOrderId(expanded ? null : order.id)}
+                              className="w-full p-4 sm:p-5 text-left transition hover:bg-stone-50/70 dark:hover:bg-slate-800/50"
+                            >
+                              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                {/* Left Side: Order details */}
+                                <div className="flex items-center gap-3.5">
+                                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-restaurant-accent/15 text-restaurant-accent font-bold">
+                                    <Receipt size={20} />
+                                  </div>
 
-                          <TimelineItem
-                            label={t.stepReady}
-                            time={
-                              order.timeline?.ready_at
-                                ? formatTime(order.timeline.ready_at)
-                                : 'N/A'
-                            }
-                            icon={<Bell size={15} />}
-                          />
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h3 className="font-bold text-sm sm:text-base text-stone-900 dark:text-white">
+                                        {order.order_number.startsWith('order-')
+                                          ? order.order_number
+                                          : `#${order.order_number}`}
+                                      </h3>
 
-                          <TimelineItem
-                            label={t.stepCookTime}
-                            time={order.timeline?.cooking_duration || 'N/A'}
-                            highlight={Boolean(order.timeline?.cooking_duration)}
-                            icon={<Timer size={15} />}
-                          />
+                                      <span className="rounded-full bg-emerald-100 dark:bg-emerald-950 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                        {t.paid}
+                                      </span>
 
-                          <TimelineItem
-                            label={t.stepServed}
-                            time={
-                              order.timeline?.served_at
-                                ? formatTime(order.timeline.served_at)
-                                : 'N/A'
-                            }
-                            icon={<UtensilsCrossed size={15} />}
-                          />
+                                      <span className="rounded-full bg-stone-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-slate-700">
+                                        {order.table_name || t.takeaway}
+                                      </span>
 
-                          <TimelineItem
-                            label={t.stepPaid}
-                            time={formatTime(order.timeline?.paid_at || order.updated_at)}
-                            sub={formatDate(order.timeline?.paid_at || order.updated_at)}
-                            icon={<CheckCircle2 size={15} />}
-                          />
-                        </div>
-                      </div>
+                                      {order.waiter_name && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-950 px-2.5 py-0.5 text-xs font-bold text-purple-900 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+                                          <User size={12} /> {order.waiter_name}
+                                        </span>
+                                      )}
+                                    </div>
 
-                      {/* FOOD ITEMS ORDERED & BILLING RECEIPT */}
-                      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        {/* Items List (2 cols) */}
-                        <div className="lg:col-span-2 space-y-3">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
-                            {t.itemsOrderedTitle} ({order.items.length})
-                          </h4>
+                                    {/* Subtitle row with HIGH-CONTRAST TEXT */}
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs font-semibold text-stone-600 dark:text-stone-300">
+                                      <span>{t.orderedTime}: <strong className="text-stone-800 dark:text-white">{formatTime(order.timeline?.ordered_at || order.created_at)}</strong></span>
+                                      <span>•</span>
+                                      <span>{t.paidTime}: <strong className="text-stone-800 dark:text-white">{formatTime(order.timeline?.paid_at || order.updated_at)}</strong></span>
+                                      <span>•</span>
+                                      <span>{itemsCount} {itemsCount === 1 ? t.singleItemCount : t.itemsCount}</span>
 
-                          <div className="space-y-2">
-                            {order.items.length === 0 ? (
-                              <p className="text-xs font-semibold text-stone-600 dark:text-stone-400 py-3">{t.noItemsFound}</p>
-                            ) : (
-                              order.items.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-xs"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-restaurant-accent/20 text-xs font-extrabold text-stone-900 dark:text-amber-300">
-                                      {item.quantity}×
+                                      {order.timeline?.cooking_duration && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-bold text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                                            <Timer size={12} /> {order.timeline.cooking_duration}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Right Side: Payment amount & Expand Chevron */}
+                                <div className="flex items-center justify-between md:justify-end gap-4 pt-2 md:pt-0 border-t md:border-t-0 border-stone-200 dark:border-slate-800">
+                                  <div className="text-left md:text-right">
+                                    <span
+                                      className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${
+                                        isCash
+                                          ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
+                                          : isCbe
+                                            ? 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200 border-sky-300 dark:border-sky-800'
+                                            : isTelebirr
+                                              ? 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-200 border-amber-300 dark:border-amber-800'
+                                              : 'bg-stone-100 text-stone-900 dark:bg-slate-800 dark:text-stone-200 border-stone-300 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      {isCash ? t.cash : isCbe ? t.cbe : isTelebirr ? t.telebirr : (order.payment?.payment_method || 'Settled')}
                                     </span>
 
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-bold text-stone-900 dark:text-white truncate">
-                                        {itemName(item)}
-                                      </p>
-                                      {item.notes && (
-                                        <p className="text-xs text-stone-600 dark:text-stone-300 italic truncate">
-                                          {t.notes}: {item.notes}
-                                        </p>
+                                    <p className="mt-0.5 text-base sm:text-lg font-bold text-stone-900 dark:text-white">
+                                      {money(paymentAmount)}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-100 dark:bg-slate-800 text-stone-600 dark:text-stone-300 group-hover:text-restaurant-accent transition">
+                                    {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* EXPANDED DETAILS DRAWER */}
+                            {expanded && (
+                              <div className="border-t border-stone-200 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-850 p-5 sm:p-6 space-y-6 animate-fade-in">
+                                {/* KITCHEN & ORDER LIFECYCLE STEPPER */}
+                                <div className="space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                                      <Clock size={14} className="text-restaurant-accent" />
+                                      {t.lifecycleTitle}
+                                    </h4>
+                                    <span className="text-xs font-semibold text-stone-700 dark:text-stone-300">
+                                      {t.tables}: <strong className="text-stone-900 dark:text-white">{order.table_name || t.takeaway}</strong>
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                                    <TimelineItem
+                                      label={t.stepOrdered}
+                                      time={formatTime(order.timeline?.ordered_at || order.created_at)}
+                                      sub={formatDate(order.timeline?.ordered_at || order.created_at)}
+                                      icon={<Clock size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepToKitchen}
+                                      time={
+                                        order.timeline?.sent_to_kitchen_at
+                                          ? formatTime(order.timeline.sent_to_kitchen_at)
+                                          : 'Auto-sent'
+                                      }
+                                      icon={<Send size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepPreparing}
+                                      time={
+                                        order.timeline?.preparing_at
+                                          ? formatTime(order.timeline.preparing_at)
+                                          : 'N/A'
+                                      }
+                                      icon={<ChefHat size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepReady}
+                                      time={
+                                        order.timeline?.ready_at
+                                          ? formatTime(order.timeline.ready_at)
+                                          : 'N/A'
+                                      }
+                                      icon={<Bell size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepCookTime}
+                                      time={order.timeline?.cooking_duration || 'N/A'}
+                                      highlight={Boolean(order.timeline?.cooking_duration)}
+                                      icon={<Timer size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepServed}
+                                      time={
+                                        order.timeline?.served_at
+                                          ? formatTime(order.timeline.served_at)
+                                          : 'N/A'
+                                      }
+                                      icon={<UtensilsCrossed size={15} />}
+                                    />
+
+                                    <TimelineItem
+                                      label={t.stepPaid}
+                                      time={formatTime(order.timeline?.paid_at || order.updated_at)}
+                                      sub={formatDate(order.timeline?.paid_at || order.updated_at)}
+                                      icon={<CheckCircle2 size={15} />}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* FOOD ITEMS ORDERED & BILLING RECEIPT */}
+                                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                                  {/* Items List (2 cols) */}
+                                  <div className="lg:col-span-2 space-y-3">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200">
+                                      {t.itemsOrderedTitle} ({order.items.length})
+                                    </h4>
+
+                                    <div className="space-y-2">
+                                      {order.items.length === 0 ? (
+                                        <p className="text-xs font-semibold text-stone-600 dark:text-stone-400 py-3">{t.noItemsFound}</p>
+                                      ) : (
+                                        order.items.map((item) => (
+                                          <div
+                                            key={item.id}
+                                            className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 shadow-xs"
+                                          >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-restaurant-accent/20 text-xs font-extrabold text-stone-900 dark:text-amber-300">
+                                                {item.quantity}×
+                                              </span>
+
+                                              <div className="min-w-0">
+                                                <p className="text-sm font-bold text-stone-900 dark:text-white truncate">
+                                                  {itemName(item)}
+                                                </p>
+                                                {item.notes && (
+                                                  <p className="text-xs text-stone-600 dark:text-stone-300 italic truncate">
+                                                    {t.notes}: {item.notes}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            <div className="text-right flex-shrink-0">
+                                              <p className="text-sm font-bold text-stone-900 dark:text-white">
+                                                {money(Number(item.subtotal || (item.price || 0) * item.quantity))}
+                                              </p>
+                                              <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
+                                                {money(Number(item.unit_price || item.price || 0))} each
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))
                                       )}
                                     </div>
                                   </div>
 
-                                  <div className="text-right flex-shrink-0">
-                                    <p className="text-sm font-bold text-stone-900 dark:text-white">
-                                      {money(Number(item.subtotal || (item.price || 0) * item.quantity))}
-                                    </p>
-                                    <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-                                      {money(Number(item.unit_price || item.price || 0))} each
-                                    </p>
+                                  {/* Billing & Order Notes (1 col) */}
+                                  <div className="space-y-4">
+                                    <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-xs">
+                                      <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 border-b border-stone-200 dark:border-slate-700 pb-2">
+                                        {t.settlementReceipt}
+                                      </h4>
+
+                                      <div className="space-y-2 text-xs font-semibold">
+                                        <div className="flex justify-between text-stone-700 dark:text-stone-300">
+                                          <span>{t.subtotal}</span>
+                                          <span className="font-bold text-stone-900 dark:text-white">
+                                            {money(order.subtotal || order.total)}
+                                          </span>
+                                        </div>
+
+                                        {Number(order.discount) > 0 && (
+                                          <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
+                                            <span>{t.discount}</span>
+                                            <span>-{money(order.discount)}</span>
+                                          </div>
+                                        )}
+
+                                        {Number(order.tax) > 0 && (
+                                          <div className="flex justify-between text-stone-700 dark:text-stone-300">
+                                            <span>{t.tax}</span>
+                                            <span className="font-bold text-stone-900 dark:text-white">
+                                              {money(order.tax)}
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        <div className="flex justify-between border-t border-stone-200 dark:border-slate-700 pt-2 text-sm font-extrabold text-stone-900 dark:text-white">
+                                          <span>{t.totalSettled}</span>
+                                          <span className="text-restaurant-accent">
+                                            {money(order.total)}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between text-xs text-stone-600 dark:text-stone-400 pt-1">
+                                          <span>{t.method}</span>
+                                          <span className="font-bold uppercase text-stone-900 dark:text-white">
+                                            {isCash ? t.cash : isCbe ? t.cbe : isTelebirr ? t.telebirr : (order.payment?.payment_method || 'CASH')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* PAYMENT RECEIPT / SCREENSHOT PREVIEW */}
+                                    {order.payment?.receipt_image && (
+                                      <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-2 shadow-xs">
+                                        <div className="flex items-center justify-between">
+                                          <h5 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
+                                            <Camera size={13} className="text-restaurant-accent" />
+                                            {t.receiptScreenshot}
+                                          </h5>
+                                          <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                                            {t.attached}
+                                          </span>
+                                        </div>
+
+                                        <div
+                                          onClick={() => setSelectedReceiptImage(order.payment?.receipt_image || null)}
+                                          className="relative h-32 w-full rounded-lg overflow-hidden border border-stone-200 dark:border-slate-700 cursor-pointer group bg-stone-100 dark:bg-slate-900 flex items-center justify-center"
+                                          title={t.viewFullPhoto}
+                                        >
+                                          <img
+                                            src={order.payment.receipt_image}
+                                            alt="Payment confirmation screenshot"
+                                            className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                                            <Eye size={15} /> {t.viewFullPhoto}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Waiter & Customer Card */}
+                                    {(order.waiter_name || order.customer_name || order.notes) && (
+                                      <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-1.5 text-xs font-medium shadow-xs">
+                                        {order.waiter_name && (
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-stone-600 dark:text-stone-400">{t.staffWaiter}:</span>
+                                            <span className="font-bold text-purple-800 dark:text-purple-300">
+                                              {order.waiter_name}
+                                            </span>
+                                          </div>
+                                        )}
+                                        {order.customer_name && (
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-stone-600 dark:text-stone-400">{t.customer}:</span>
+                                            <span className="font-bold text-stone-900 dark:text-white">
+                                              {order.customer_name}
+                                            </span>
+                                          </div>
+                                        )}
+                                        {order.notes && (
+                                          <div className="pt-1.5 border-t border-stone-200 dark:border-slate-700 text-stone-700 dark:text-stone-300 text-xs">
+                                            <span className="font-bold text-stone-900 dark:text-white">{t.notes}: </span>
+                                            {order.notes}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                              ))
+                              </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Billing & Order Notes (1 col) */}
-                        <div className="space-y-4">
-                          <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-3 shadow-xs">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 border-b border-stone-200 dark:border-slate-700 pb-2">
-                              {t.settlementReceipt}
-                            </h4>
-
-                            <div className="space-y-2 text-xs font-semibold">
-                              <div className="flex justify-between text-stone-700 dark:text-stone-300">
-                                <span>{t.subtotal}</span>
-                                <span className="font-bold text-stone-900 dark:text-white">
-                                  {money(order.subtotal || order.total)}
-                                </span>
-                              </div>
-
-                              {Number(order.discount) > 0 && (
-                                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-bold">
-                                  <span>{t.discount}</span>
-                                  <span>-{money(order.discount)}</span>
-                                </div>
-                              )}
-
-                              {Number(order.tax) > 0 && (
-                                <div className="flex justify-between text-stone-700 dark:text-stone-300">
-                                  <span>{t.tax}</span>
-                                  <span className="font-bold text-stone-900 dark:text-white">
-                                    {money(order.tax)}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="flex justify-between border-t border-stone-200 dark:border-slate-700 pt-2 text-sm font-extrabold text-stone-900 dark:text-white">
-                                <span>{t.totalSettled}</span>
-                                <span className="text-restaurant-accent">
-                                  {money(order.total)}
-                                </span>
-                              </div>
-
-                              <div className="flex justify-between text-xs text-stone-600 dark:text-stone-400 pt-1">
-                                <span>{t.method}</span>
-                                <span className="font-bold uppercase text-stone-900 dark:text-white">
-                                  {isCash ? t.cash : isCbe ? t.cbe : isTelebirr ? t.telebirr : (order.payment?.payment_method || 'CASH')}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* PAYMENT RECEIPT / SCREENSHOT PREVIEW */}
-                          {order.payment?.receipt_image && (
-                            <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-2 shadow-xs">
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-xs font-bold uppercase tracking-wider text-stone-800 dark:text-stone-200 flex items-center gap-1.5">
-                                  <Camera size={13} className="text-restaurant-accent" />
-                                  {t.receiptScreenshot}
-                                </h5>
-                                <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
-                                  {t.attached}
-                                </span>
-                              </div>
-
-                              <div
-                                onClick={() => setSelectedReceiptImage(order.payment?.receipt_image || null)}
-                                className="relative h-32 w-full rounded-lg overflow-hidden border border-stone-200 dark:border-slate-700 cursor-pointer group bg-stone-100 dark:bg-slate-900 flex items-center justify-center"
-                                title={t.viewFullPhoto}
-                              >
-                                <img
-                                  src={order.payment.receipt_image}
-                                  alt="Payment confirmation screenshot"
-                                  className="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-200"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5">
-                                  <Eye size={15} /> {t.viewFullPhoto}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Waiter & Customer Card */}
-                          {(order.waiter_name || order.customer_name || order.notes) && (
-                            <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 space-y-1.5 text-xs font-medium shadow-xs">
-                              {order.waiter_name && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-stone-600 dark:text-stone-400">{t.staffWaiter}:</span>
-                                  <span className="font-bold text-purple-800 dark:text-purple-300">
-                                    {order.waiter_name}
-                                  </span>
-                                </div>
-                              )}
-                              {order.customer_name && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-stone-600 dark:text-stone-400">{t.customer}:</span>
-                                  <span className="font-bold text-stone-900 dark:text-white">
-                                    {order.customer_name}
-                                  </span>
-                                </div>
-                              )}
-                              {order.notes && (
-                                <div className="pt-1.5 border-t border-stone-200 dark:border-slate-700 text-stone-700 dark:text-stone-300 text-xs">
-                                  <span className="font-bold text-stone-900 dark:text-white">{t.notes}: </span>
-                                  {order.notes}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
