@@ -11,12 +11,15 @@ import {
   RefreshCw,
   CheckCircle,
   Play,
-  Utensils,
   AlertCircle,
   Coffee,
   Bell,
   Volume2,
   VolumeX,
+  Table2,
+  ShoppingBag,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 type KitchenType = 'food' | 'drinks'
@@ -477,38 +480,164 @@ type KitchenSectionProps = {
   waiting?: boolean
 }
 
-function KitchenSection(props: KitchenSectionProps) {
+type KitchenTableGroup = {
+  tableId: string | null
+  tableName: string
+  orders: Order[]
+  itemsCount: number
+}
+
+function KitchenSection({
+  title,
+  description,
+  count,
+  orders,
+  emptyTitle,
+  emptyDescription,
+  tableName,
+  getItemName,
+  getOrderAge,
+  updatingOrder,
+  actionLabel,
+  actionIcon,
+  onAction,
+  statusLabel,
+  isAmharic,
+  waiting,
+}: KitchenSectionProps) {
+  const [collapsedTables, setCollapsedTables] = useState<Record<string, boolean>>({})
+
+  const toggleTableCollapse = (tableKey: string) => {
+    setCollapsedTables((prev) => ({
+      ...prev,
+      [tableKey]: prev[tableKey] === false ? true : false,
+    }))
+  }
+
+  const tableGroups = useMemo(() => {
+    const map: Record<string, KitchenTableGroup> = {}
+
+    orders.forEach((order) => {
+      const key = order.table_id || 'takeaway'
+      if (!map[key]) {
+        map[key] = {
+          tableId: order.table_id,
+          tableName: tableName(order.table_id),
+          orders: [],
+          itemsCount: 0,
+        }
+      }
+      map[key].orders.push(order)
+      map[key].itemsCount += (order.items || []).length
+    })
+
+    return Object.values(map)
+  }, [orders, tableName])
+
+  const handleBatchAction = async (ordersList: Order[]) => {
+    for (const order of ordersList) {
+      await onAction(order.id)
+    }
+  }
+
   return (
-    <section className={props.waiting ? 'mb-10' : ''}>
+    <section className={waiting ? 'mb-10' : ''}>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-restaurant-text dark:text-white">{props.title}</h2>
-          <p className="text-sm text-gray-500">{props.description}</p>
+          <h2 className="text-xl font-bold text-restaurant-text dark:text-white">{title}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
         </div>
-        <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
-          {props.count}
+        <span className="rounded-full bg-blue-100 dark:bg-blue-950/80 dark:text-blue-300 px-3 py-1 text-sm font-semibold text-blue-700">
+          {count}
         </span>
       </div>
 
-      {props.orders.length === 0 ? (
-        <EmptyState title={props.emptyTitle} description={props.emptyDescription} waiting={props.waiting} />
+      {orders.length === 0 ? (
+        <EmptyState title={emptyTitle} description={emptyDescription} waiting={waiting} />
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {props.orders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              tableName={props.tableName(order.table_id)}
-              getItemName={props.getItemName}
-              getOrderAge={props.getOrderAge}
-              updating={props.updatingOrder === order.id}
-              actionLabel={props.actionLabel}
-              actionIcon={props.actionIcon}
-              onAction={() => props.onAction(order.id)}
-              statusLabel={props.statusLabel}
-              isAmharic={props.isAmharic}
-            />
-          ))}
+        <div className="space-y-4">
+          {tableGroups.map((group) => {
+            const groupKey = group.tableId || 'takeaway'
+            const isCollapsed = collapsedTables[groupKey] !== false
+            const isTakeaway = !group.tableId
+
+            return (
+              <div
+                key={groupKey}
+                className="overflow-hidden rounded-2xl border border-stone-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all"
+              >
+                {/* TABLE ACCORDION HEADER */}
+                <div
+                  onClick={() => toggleTableCollapse(groupKey)}
+                  className="p-4 bg-stone-50/90 dark:bg-slate-800/90 hover:bg-stone-100 dark:hover:bg-slate-800 cursor-pointer flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 dark:border-slate-700/80 transition select-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="p-1 rounded-lg text-stone-500 dark:text-slate-400 hover:text-restaurant-accent hover:bg-stone-200 dark:hover:bg-slate-700 transition"
+                    >
+                      {isCollapsed ? <ChevronDown size={22} /> : <ChevronUp size={22} />}
+                    </button>
+
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-10 w-10 rounded-xl bg-restaurant-accent/15 text-restaurant-accent flex items-center justify-center font-bold">
+                        {isTakeaway ? <ShoppingBag size={20} /> : <Table2 size={20} />}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-stone-900 dark:text-white">
+                            {group.tableName}
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full bg-restaurant-accent text-white text-xs font-bold">
+                            {group.orders.length} {group.orders.length === 1 ? (isAmharic ? 'ትዕዛዝ' : 'Order') : (isAmharic ? 'ትዕዛዞች' : 'Orders')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-500 dark:text-slate-400 font-medium mt-0.5">
+                          {group.itemsCount} {isAmharic ? 'መጠጦች total' : 'items total'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => handleBatchAction(group.orders)}
+                      className="px-3.5 py-1.5 rounded-xl bg-restaurant-accent hover:bg-restaurant-accent-dark text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                    >
+                      {actionIcon}
+                      <span>
+                        {waiting
+                          ? (isAmharic ? `ሁሉንም ጀምር (${group.orders.length})` : `Start All (${group.orders.length})`)
+                          : (isAmharic ? `ሁሉንም አዘጋጅ (${group.orders.length})` : `Mark All Ready (${group.orders.length})`)}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* TABLE ACCORDION BODY (GRID OF ORDERS) */}
+                {!isCollapsed && (
+                  <div className="p-4 sm:p-5 bg-stone-100/50 dark:bg-slate-950/60 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {group.orders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        getItemName={getItemName}
+                        getOrderAge={getOrderAge}
+                        updating={updatingOrder === order.id}
+                        actionLabel={actionLabel}
+                        actionIcon={actionIcon}
+                        onAction={() => onAction(order.id)}
+                        statusLabel={statusLabel}
+                        isAmharic={isAmharic}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>
@@ -517,7 +646,6 @@ function KitchenSection(props: KitchenSectionProps) {
 
 type OrderCardProps = {
   order: Order
-  tableName: string
   getItemName: (item: OrderItem) => string
   getOrderAge: (createdAt: string) => string
   updating: boolean
@@ -530,7 +658,6 @@ type OrderCardProps = {
 
 function OrderCard({
   order,
-  tableName,
   getItemName,
   getOrderAge,
   updating,
@@ -540,89 +667,82 @@ function OrderCard({
   statusLabel,
   isAmharic,
 }: OrderCardProps) {
+  const orderNumberStr = order.order_number.startsWith('order-') ? order.order_number : `#${order.order_number}`
+
   return (
-    <div className="overflow-hidden rounded-xl border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-center justify-between border-b px-5 py-4 dark:border-slate-700">
-        <div>
-          <p className="text-lg font-bold text-restaurant-text dark:text-white">
-            {order.order_number.startsWith('order-')
-              ? order.order_number
-              : `#${order.order_number}`}
-          </p>
-          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-            <Utensils size={15} />
-            <span>{tableName}</span>
-            <span>•</span>
-            <Clock size={15} />
-            <span>{getOrderAge(order.created_at)}</span>
-          </div>
+    <div className="rounded-2xl border border-stone-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 p-4 space-y-3 flex flex-col justify-between transition-all shadow-xs">
+      {/* TOP ROW: Order Number & Badges */}
+      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-slate-700/70 pb-2.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono font-bold text-stone-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-700/80 border border-stone-200 dark:border-slate-600 px-2 py-0.5 rounded-md">
+            {orderNumberStr}
+          </span>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+              statusLabel === 'Preparing' || statusLabel === 'በዝግጅት ላይ'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+            }`}
+          >
+            {statusLabel}
+          </span>
         </div>
 
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            statusLabel === 'Preparing' || statusLabel === 'በዝግጅት ላይ'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-yellow-100 text-yellow-700'
-          }`}
-        >
-          {statusLabel}
+        <span className="flex items-center gap-1 text-[11px] text-stone-500 dark:text-slate-400 font-medium">
+          <Clock size={12} />
+          {getOrderAge(order.created_at)}
         </span>
       </div>
 
-      <div className="p-5">
-        <div className="space-y-3">
-          {(order.items || []).map((item) => (
-            <div key={item.id} className="rounded-lg border p-3 dark:border-slate-700">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex gap-3">
-                  <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-restaurant-accent/10 px-2 font-bold text-restaurant-accent">
-                    {item.quantity}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-restaurant-text dark:text-white">{getItemName(item)}</p>
-                    {item.notes && (
-                      <p className="mt-1 text-sm text-orange-600">
-                        {isAmharic ? 'ማስታወሻ: ' : 'Note: '}{item.notes}
-                      </p>
-                    )}
-                  </div>
-                </div>
+      {/* ITEMS LIST */}
+      <div className="space-y-2 flex-1 py-1">
+        {(order.items || []).map((item) => (
+          <div key={item.id} className="rounded-lg border border-stone-200/80 dark:border-slate-700/70 bg-stone-50/60 dark:bg-slate-900/60 p-2.5">
+            <div className="flex items-start gap-2.5">
+              <span className="flex-shrink-0 min-w-[26px] h-6 px-1.5 rounded-md bg-amber-100/80 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/50 flex items-center justify-center text-xs font-bold text-amber-900 dark:text-amber-300">
+                {item.quantity}×
+              </span>
+              <div className="min-w-0">
+                <p className="font-medium text-xs sm:text-sm text-stone-900 dark:text-white leading-snug">
+                  {getItemName(item)}
+                </p>
+                {item.notes && (
+                  <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-1.5 rounded border border-amber-200/60 dark:border-amber-900/60">
+                    {isAmharic ? 'ማስታወሻ: ' : 'Note: '}{item.notes}
+                  </p>
+                )}
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
 
         {order.notes && (
-          <div className="mt-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800">
-            <span className="font-semibold">{isAmharic ? 'የትዕዛዝ ማስታወሻ: ' : 'Order note: '}</span>
+          <div className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/60">
+            <span className="font-bold">{isAmharic ? 'የትዕዛዝ ማስታወሻ: ' : 'Order note: '}</span>
             {order.notes}
           </div>
         )}
+      </div>
 
+      {/* ACTION BUTTON */}
+      <div className="pt-2 border-t border-stone-200 dark:border-slate-700/80">
         <button
           onClick={onAction}
           disabled={updating}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-restaurant-accent px-4 py-3 font-semibold text-white transition hover:bg-restaurant-accent-dark disabled:cursor-wait disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-restaurant-accent hover:bg-restaurant-accent-dark px-4 py-2.5 text-xs font-bold text-white transition disabled:cursor-wait disabled:opacity-60 shadow-xs"
         >
           {updating ? (
             <>
-              <RefreshCw size={18} className="animate-spin" />
-              {isAmharic ? 'በማስተካከል ላይ...' : 'Updating...'}
+              <RefreshCw size={16} className="animate-spin" />
+              <span>{isAmharic ? 'በማስተካከል ላይ...' : 'Updating...'}</span>
             </>
           ) : (
             <>
               {actionIcon}
-              {actionLabel}
+              <span>{actionLabel}</span>
             </>
           )}
         </button>
-      </div>
-
-      <div className="border-t bg-gray-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">{isAmharic ? 'ጠቅላላ ዋጋ' : 'Order total'}</span>
-          <span className="font-bold">{Number(order.total).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}</span>
-        </div>
       </div>
     </div>
   )

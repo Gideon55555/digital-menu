@@ -1080,7 +1080,7 @@ export default function MenuManagementPage() {
                   {/* Procurement Form Content */}
                   {editingItem.costInfo?.costType === 'bought' ? (
                     /* BOUGHT ITEM: DIRECT PURCHASE COST */
-                    <div className="bg-white dark:bg-slate-850 rounded-xl p-4 border border-cream-200 dark:border-slate-700/60 space-y-3">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 border border-cream-200 dark:border-slate-700/60 space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <label className="block text-xs font-bold text-gray-800 dark:text-gray-200 mb-1">
@@ -1145,7 +1145,7 @@ export default function MenuManagementPage() {
 
                       {(!editingItem.costInfo?.ingredients ||
                         editingItem.costInfo.ingredients.length === 0) ? (
-                        <div className="text-center py-6 border border-dashed border-cream-300 dark:border-slate-700 rounded-xl bg-white/70 dark:bg-slate-850/50">
+                        <div className="text-center py-6 border border-dashed border-cream-300 dark:border-slate-700 rounded-xl bg-white/70 dark:bg-slate-800/50">
                           <p className="text-xs text-gray-400">
                             {isAmharic
                               ? 'ምንም ግብአት ገና አልተጨመረም። ከላይ "ግብአት ጨምር" የሚለውን ይጫኑ።'
@@ -1157,7 +1157,7 @@ export default function MenuManagementPage() {
                           {editingItem.costInfo.ingredients.map((ing, idx) => (
                             <div
                               key={ing.id || idx}
-                              className="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-850 border border-cream-200 dark:border-slate-700/60 shadow-2xs"
+                              className="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-cream-200 dark:border-slate-700/60 shadow-2xs"
                             >
                               {/* Ingredient Name */}
                               <input
@@ -1241,7 +1241,7 @@ export default function MenuManagementPage() {
                   )}
 
                   {/* REAL-TIME PROFIT & MARGIN DASHBOARD CARD */}
-                  <div className="rounded-xl bg-white dark:bg-slate-850 p-4 border border-cream-200 dark:border-slate-700/70 space-y-4">
+                  <div className="rounded-xl bg-white dark:bg-slate-800 p-4 border border-cream-200 dark:border-slate-700/70 space-y-4">
                     {/* Metrics Row */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                       <div className="p-3 rounded-xl bg-cream-50 dark:bg-slate-800 border border-cream-200/60 dark:border-slate-700/50">
@@ -1424,7 +1424,7 @@ export default function MenuManagementPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 p-5 sm:p-6 border-t border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-850 shrink-0">
+              <div className="flex items-center justify-end gap-3 p-5 sm:p-6 border-t border-cream-200 dark:border-slate-800 bg-cream-50/50 dark:bg-slate-800 shrink-0">
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}

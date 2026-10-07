@@ -662,7 +662,7 @@ function OrdersReportPageContent() {
   const toggleReportTableCollapse = (name: string) => {
     setCollapsedReportTables((prev) => ({
       ...prev,
-      [name]: !prev[name],
+      [name]: prev[name] === false ? true : false,
     }))
   }
 
@@ -715,7 +715,7 @@ function OrdersReportPageContent() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* In-page Language Selector */}
-          <div className="flex items-center rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-850 p-0.5 shadow-sm">
+          <div className="flex items-center rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-0.5 shadow-sm">
             <button
               type="button"
               onClick={() => setLanguage('en')}
@@ -1092,7 +1092,7 @@ function OrdersReportPageContent() {
       </div>
 
       {/* 🔥 PEAK HOURS & OPERATIONAL RUSH INTELLIGENCE */}
-      <div className="restaurant-card p-5 sm:p-6 border border-amber-200 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/40 via-white to-cream-50/40 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 shadow-sm">
+      <div className="restaurant-card p-5 sm:p-6 border border-amber-200 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/40 via-white to-cream-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 shadow-sm">
         {/* Section Header with Dual Toggle */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-stone-200 dark:border-slate-800 pb-4 mb-5">
           <div>
@@ -1215,7 +1215,7 @@ function OrdersReportPageContent() {
 
         {/* CHART BODY */}
         {graph.length === 0 ? (
-          <div className="flex h-60 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 dark:border-slate-800 text-center p-8 bg-stone-50/50 dark:bg-slate-850/50">
+          <div className="flex h-60 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 dark:border-slate-800 text-center p-8 bg-stone-50/50 dark:bg-slate-900/50">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-200 dark:bg-slate-800 text-stone-500 mb-2">
               <BarChart3 size={24} />
             </div>
@@ -1503,7 +1503,7 @@ function OrdersReportPageContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                className="w-full sm:w-64 pl-9 pr-8 py-2 rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-850 text-xs font-medium text-stone-900 dark:text-white placeholder-stone-500 dark:placeholder-stone-400 focus:ring-2 focus:ring-restaurant-accent focus:border-restaurant-accent"
+                className="w-full sm:w-64 pl-9 pr-8 py-2 rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-stone-900 dark:text-white placeholder-stone-500 dark:placeholder-stone-400 focus:ring-2 focus:ring-restaurant-accent focus:border-restaurant-accent"
               />
               {searchQuery && (
                 <button
@@ -1562,7 +1562,7 @@ function OrdersReportPageContent() {
         ) : (
           <div className="space-y-4">
             {reportTableGroups.map((group) => {
-              const isCollapsed = Boolean(collapsedReportTables[group.tableName])
+              const isCollapsed = collapsedReportTables[group.tableName] !== false
 
               return (
                 <div
@@ -1722,7 +1722,7 @@ function OrdersReportPageContent() {
 
                             {/* EXPANDED DETAILS DRAWER */}
                             {expanded && (
-                              <div className="border-t border-stone-200 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-850 p-5 sm:p-6 space-y-6 animate-fade-in">
+                              <div className="border-t border-stone-200 dark:border-slate-800 bg-stone-50/60 dark:bg-slate-900 p-5 sm:p-6 space-y-6 animate-fade-in">
                                 {/* KITCHEN & ORDER LIFECYCLE STEPPER */}
                                 <div className="space-y-2.5">
                                   <div className="flex items-center justify-between">
@@ -2019,7 +2019,7 @@ function OrdersReportPageContent() {
           <div className="w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200">
 
             {/* DRAWER HEADER */}
-            <div className="flex items-center justify-between border-b border-stone-200 dark:border-slate-800 p-5 bg-stone-50 dark:bg-slate-850">
+            <div className="flex items-center justify-between border-b border-stone-200 dark:border-slate-800 p-5 bg-stone-50 dark:bg-slate-900">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                   <Wallet size={20} />
@@ -2223,7 +2223,7 @@ function OrdersReportPageContent() {
             </div>
 
             {/* DRAWER FOOTER SUMMARY */}
-            <div className="p-4 border-t border-stone-200 dark:border-slate-800 bg-stone-100 dark:bg-slate-850 flex items-center justify-between">
+            <div className="p-4 border-t border-stone-200 dark:border-slate-800 bg-stone-100 dark:bg-slate-900 flex items-center justify-between">
               <span className="text-xs font-bold text-stone-600 dark:text-stone-400">
                 {t.totalOutflow || (language === 'am' ? 'ጠቅላላ ወጪ:' : 'Total Money Out:')}
               </span>

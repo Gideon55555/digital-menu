@@ -719,7 +719,7 @@ export default function OrdersPage() {
   const toggleTableCollapse = (tableKey: string) => {
     setCollapsedTables((prev) => ({
       ...prev,
-      [tableKey]: !prev[tableKey],
+      [tableKey]: prev[tableKey] === false ? true : false,
     }));
   };
 
@@ -979,7 +979,7 @@ export default function OrdersPage() {
           <div className="space-y-6">
             {tableGroups.map((group) => {
               const groupKey = group.tableId || 'takeaway';
-              const isCollapsed = Boolean(collapsedTables[groupKey]);
+              const isCollapsed = collapsedTables[groupKey] !== false;
               const isTakeaway = !group.tableId;
 
               return (
@@ -1181,13 +1181,13 @@ function OrderCard({
   const orderNumberStr = order.order_number.startsWith('order-') ? order.order_number : `#${order.order_number}`;
 
   return (
-    <div className={`rounded-2xl border border-stone-200 dark:border-slate-800 bg-cream-50/40 dark:bg-slate-850 p-4 space-y-3 flex flex-col justify-between transition-all shadow-xs hover:border-restaurant-accent ${isPendingApproval ? 'ring-2 ring-amber-400 dark:ring-amber-600' : ''}`}>
+    <div className={`rounded-2xl border border-stone-200 dark:border-slate-700/80 bg-white dark:bg-slate-800 p-4 space-y-3 flex flex-col justify-between transition-all shadow-xs hover:border-restaurant-accent dark:hover:border-amber-500/60 ${isPendingApproval ? 'ring-2 ring-amber-400 dark:ring-amber-500' : ''}`}>
       
       {/* TOP ROW: Small Order Number & Badges */}
-      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-slate-800 pb-2.5">
+      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-slate-700/70 pb-2.5">
         <div className="flex items-center gap-2">
           {/* Small Order Number */}
-          <span className="text-xs font-mono font-bold text-stone-600 dark:text-stone-300 bg-stone-200/70 dark:bg-slate-700 px-2 py-0.5 rounded-md">
+          <span className="text-xs font-mono font-bold text-stone-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-700/80 border border-stone-200 dark:border-slate-600 px-2 py-0.5 rounded-md">
             {orderNumberStr}
           </span>
 
@@ -1362,43 +1362,30 @@ function OrderItemRow({
   const secondaryName = isAmharic && amharicName ? itemName : amharicName;
 
   return (
-    <div className="flex items-start justify-between gap-4">
-
-      <div className="flex items-start gap-3 min-w-0">
-
-        <span className="flex-shrink-0 min-w-[28px] h-7 px-1.5 rounded-md bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold text-restaurant-accent">
+    <div className="flex items-start justify-between gap-3 text-stone-900 dark:text-slate-100">
+      <div className="flex items-start gap-2.5 min-w-0">
+        <span className="flex-shrink-0 min-w-[26px] h-6 px-1.5 rounded-md bg-amber-100/80 dark:bg-amber-950/70 border border-amber-200/60 dark:border-amber-800/50 flex items-center justify-center text-xs font-bold text-amber-900 dark:text-amber-300">
           {item.quantity}×
         </span>
-
         <div className="min-w-0">
-
-          <p className="font-medium text-restaurant-text dark:text-white">
+          <p className="font-medium text-xs sm:text-sm text-stone-900 dark:text-slate-100 leading-snug">
             {primaryName}
           </p>
-
           {secondaryName && secondaryName !== primaryName && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-[11px] text-stone-500 dark:text-slate-400">
               {secondaryName}
             </p>
           )}
-
           {item.notes && (
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-1 rounded border border-amber-200/60 dark:border-amber-900/60">
               {isAmharic ? 'ማስታወሻ: ' : 'Note: '}{item.notes}
             </p>
           )}
-
         </div>
-
       </div>
-
-      <span className="flex-shrink-0 text-sm font-medium">
-        {Number(
-          item.subtotal
-        ).toFixed(2)}{' '}
-        {isAmharic ? 'ብር' : 'ETB'}
+      <span className="flex-shrink-0 text-xs sm:text-sm font-semibold font-mono text-stone-800 dark:text-slate-200">
+        {Number(item.subtotal).toFixed(2)} {isAmharic ? 'ብር' : 'ETB'}
       </span>
-
     </div>
   );
 }
