@@ -348,14 +348,14 @@ function OrdersReportPageContent() {
     })} ${language === 'am' ? 'ብር' : 'ETB'}`
   }
 
-  function itemName(item: OrderItem) {
+  const itemName = useCallback((item: OrderItem) => {
     const value = item.item_name ?? item.name
     if (typeof value === 'string') return value
     if (language === 'am' && value && typeof value.am === 'string' && value.am.trim()) return value.am
     if (value && typeof value.en === 'string' && value.en.trim()) return value.en
     if (value && typeof value.am === 'string' && value.am.trim()) return value.am
     return 'Unnamed item'
-  }
+  }, [language])
 
   function formatDate(date?: string | null) {
     if (!date) return 'N/A'
@@ -598,7 +598,7 @@ function OrdersReportPageContent() {
 
       return true
     })
-  }, [orders, paymentFilter, searchQuery, language])
+  }, [orders, paymentFilter, searchQuery, language, itemName])
 
   // Payment share percentages
   const paymentShares = useMemo(() => {
@@ -634,7 +634,7 @@ function OrdersReportPageContent() {
       }
     }
     return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
-  }, [filteredOrders, language])
+  }, [filteredOrders, itemName])
 
   // Group closed orders by Table for Report Accordions
   const reportTableGroups = useMemo(() => {

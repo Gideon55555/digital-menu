@@ -24,6 +24,8 @@ import {
   Pencil,
   Plus,
   Trash2,
+  ShoppingBag,
+  Table2,
 } from 'lucide-react';
 import { compressReceiptImage } from '@/lib/utils/image';
 import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
@@ -1053,7 +1055,6 @@ export default function OrdersPage() {
                           key={order.id}
                           order={order}
                           activeTab={activeTab}
-                          tables={tables}
                           isAmharic={isAmharic}
                           processing={processingOrderId === order.id}
                           onConfirmAndSend={confirmAndSend}
@@ -1138,7 +1139,6 @@ export default function OrdersPage() {
 function OrderCard({
   order,
   activeTab,
-  tables,
   processing,
   onConfirmAndSend,
   onCancel,
@@ -1150,7 +1150,6 @@ function OrderCard({
 }: {
   order: Order;
   activeTab: Tab;
-  tables: Table[];
   processing: boolean;
 
   onConfirmAndSend: (
@@ -2033,25 +2032,6 @@ function formatTableName(
     table.name ||
     (isAmharic ? `ጠረጴዛ ${table.table_number}` : `Table ${table.table_number}`)
   );
-}
-
-/* ============================================================
-   TIME
-============================================================ */
-
-function formatTime(
-  date: string
-): string {
-  try {
-    return new Date(
-      date
-    ).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '';
-  }
 }
 
 /* ============================================================
