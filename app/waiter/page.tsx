@@ -389,6 +389,38 @@ export default function WaiterPage() {
     return map
   }, [cart])
 
+  // Calculate frequently ordered items based on past orders
+  const frequentlyOrderedItems = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    orders.forEach((order) => {
+      if (Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          const itemId = item.menu_item_id
+          if (itemId) {
+            const qty = Number(item.quantity) || 1
+            counts.set(itemId, (counts.get(itemId) || 0) + qty)
+          }
+        })
+      }
+    })
+
+    const popular = menuItems
+      .filter((item) => item.available)
+      .map((item) => ({
+        item,
+        count: counts.get(item.id) || 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    const orderedOnly = popular.filter((p) => p.count > 0).map((p) => p.item)
+    if (orderedOnly.length >= 3) {
+      return orderedOnly.slice(0, 6)
+    }
+
+    return menuItems.filter((item) => item.available).slice(0, 6)
+  }, [orders, menuItems])
+
   // ---------------------------------------------------------
   // CART OPERATIONS
   // ---------------------------------------------------------
@@ -1174,6 +1206,32 @@ export default function WaiterPage() {
                   )
                 })}
               </div>
+
+              {/* FREQUENTLY ORDERED ITEMS SECTION */}
+              {selectedCategoryId === 'all' && !search.trim() && frequentlyOrderedItems.length > 0 && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/30 dark:border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🔥</span>
+                      <div>
+                        <h3 className="font-bold text-xs text-amber-900 dark:text-amber-300 uppercase tracking-wider">
+                          {isAmharic ? 'በብዛት የተታዘዙ ምግቦችና መጠጦች' : 'Frequently Ordered Items'}
+                        </h3>
+                        <p className="text-[10px] text-stone-500 dark:text-slate-400">
+                          {isAmharic ? 'በደንበኞች በብዛት የተወደዱና በፍጥነት የሚታዘዙ' : 'Top choice items ordered most often'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-extrabold uppercase">
+                      Popular
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {frequentlyOrderedItems.map((item) => renderItemCard(item))}
+                  </div>
+                </div>
+              )}
 
               {/* ITEMS CATALOG */}
               {categoryGroups ? (

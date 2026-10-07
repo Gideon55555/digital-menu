@@ -1320,7 +1320,7 @@ function OrderCard({
                 className="px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition flex items-center gap-1 disabled:opacity-50 shadow-xs"
               >
                 <Check size={14} />
-                <span>{isAmharic ? 'አረጋግጥና ላክ' : 'Send'}</span>
+                <span>{isAmharic ? 'አረጋግጥ' : 'Confirm'}</span>
               </button>
             ) : (
               <button

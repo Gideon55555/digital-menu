@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sparkles,
+  Search,
 } from 'lucide-react';
 
 const MEASUREMENT_UNITS = [
@@ -81,6 +82,7 @@ export default function MenuManagementPage() {
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [filter, setFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -119,14 +121,38 @@ export default function MenuManagementPage() {
   }
 
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (filter === 'all') return true;
-      if (filter === 'available') return item.available;
-      if (filter === 'sold-out') return !item.available;
+    const query = searchTerm.trim().toLowerCase();
 
-      return item.categoryId === filter;
+    return items.filter((item) => {
+      let matchesFilter = true;
+      if (filter === 'available') matchesFilter = item.available;
+      else if (filter === 'sold-out') matchesFilter = !item.available;
+      else if (filter !== 'all') matchesFilter = item.categoryId === filter;
+
+      if (!matchesFilter) return false;
+
+      if (!query) return true;
+
+      const nameEn = typeof item.name === 'object' ? (item.name?.en || '') : (item.name || '');
+      const nameAm = typeof item.name === 'object' ? (item.name?.am || '') : '';
+      const descEn = typeof item.description === 'object' ? (item.description?.en || '') : (item.description || '');
+      const descAm = typeof item.description === 'object' ? (item.description?.am || '') : '';
+      const priceStr = String(item.price || '');
+      const catObj = categories.find((c) => c.id === item.categoryId);
+      const catNameEn = typeof catObj?.name === 'object' ? (catObj.name?.en || '') : (catObj?.name || '');
+      const catNameAm = typeof catObj?.name === 'object' ? (catObj.name?.am || '') : '';
+
+      return (
+        nameEn.toLowerCase().includes(query) ||
+        nameAm.toLowerCase().includes(query) ||
+        descEn.toLowerCase().includes(query) ||
+        descAm.toLowerCase().includes(query) ||
+        priceStr.includes(query) ||
+        catNameEn.toLowerCase().includes(query) ||
+        catNameAm.toLowerCase().includes(query)
+      );
     });
-  }, [items, filter]);
+  }, [items, filter, searchTerm, categories]);
 
   const menuStats = useMemo(() => {
     let totalSellingPrice = 0;
@@ -521,8 +547,31 @@ export default function MenuManagementPage() {
           </div>
         </div>
 
-        {/* Categories / Status Filters */}
-        <div className="flex flex-wrap gap-2 pb-2">
+        {/* SEARCH BAR & CATEGORIES FILTER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2">
+          {/* SEARCH BAR */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={isAmharic ? 'የሜኑ ዕቃዎችን በስም ወይም በምድብ ፈልግ...' : 'Search menu items by name, category, or price...'}
+              className="w-full pl-10 pr-9 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-cream-200 dark:border-slate-800 text-stone-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-restaurant-accent/40 shadow-xs transition"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Categories / Status Filters */}
+          <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilter('all')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
@@ -571,6 +620,7 @@ export default function MenuManagementPage() {
               {isAmharic && cat.name.am ? cat.name.am : cat.name.en}
             </button>
           ))}
+          </div>
         </div>
 
         {/* Menu Table */}

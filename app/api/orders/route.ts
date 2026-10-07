@@ -2270,6 +2270,66 @@ export async function PUT(
       )
     }
 
+    let targetStatus = status
+
+    if (status === 'confirmed' || status === 'ready') {
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('id, menu_item_id, status')
+        .eq('order_id', id)
+
+      if (orderItems && orderItems.length > 0) {
+        const menuItemIds = [...new Set(orderItems.map((item) => item.menu_item_id).filter(Boolean))]
+        let menuItemsData: any[] = []
+        if (menuItemIds.length > 0) {
+          const { data: mData } = await supabase.from('menu_items').select('id, category_id').in('id', menuItemIds)
+          menuItemsData = mData || []
+        }
+
+        const categoryIds = [...new Set(menuItemsData.map((item) => item.category_id).filter(Boolean))]
+        let categoriesData: any[] = []
+        if (categoryIds.length > 0) {
+          const { data: cData } = await supabase.from('categories').select('id, type').in('id', categoryIds)
+          categoriesData = cData || []
+        }
+
+        const drinkItemIds: string[] = []
+        const foodItemIds: string[] = []
+
+        orderItems.forEach((item) => {
+          const menuItem = menuItemsData.find((m) => m.id === item.menu_item_id)
+          const category = categoriesData.find((c) => c.id === menuItem?.category_id)
+          const isDrink = isDrinkCategory(category?.type)
+          if (isDrink) {
+            drinkItemIds.push(item.id)
+          } else {
+            foodItemIds.push(item.id)
+          }
+        })
+
+        if (status === 'ready' || foodItemIds.length === 0) {
+          targetStatus = 'ready'
+          await supabase
+            .from('order_items')
+            .update({ status: 'ready', updated_at: new Date().toISOString() })
+            .eq('order_id', id)
+        } else {
+          if (drinkItemIds.length > 0) {
+            await supabase
+              .from('order_items')
+              .update({ status: 'ready', updated_at: new Date().toISOString() })
+              .in('id', drinkItemIds)
+          }
+          if (foodItemIds.length > 0) {
+            await supabase
+              .from('order_items')
+              .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+              .in('id', foodItemIds)
+          }
+        }
+      }
+    }
+
     const {
       data:
         updatedOrder,
@@ -2278,7 +2338,7 @@ export async function PUT(
     } = await supabase
       .from('orders')
       .update({
-        status,
+        status: targetStatus,
 
         updated_at:
           new Date().toISOString(),
