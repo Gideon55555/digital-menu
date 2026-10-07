@@ -31,6 +31,10 @@ import {
   ShoppingCart,
   Receipt,
   History,
+  PackageMinus,
+  Check,
+  Phone,
+  Calendar,
 } from 'lucide-react';
 import { getAdminAccessToken, getAdminAuth, normalizeAdminRole, signOutAdmin } from '@/lib/admin-auth';
 import { supabase } from '@/lib/supabase';
@@ -164,6 +168,68 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
     };
   }, [adminAuth, role]);
 
+  // Unreturned Materials Daily Popup Alert State
+  const [unreturnedItems, setUnreturnedItems] = useState<any[]>([]);
+  const [showUnreturnedModal, setShowUnreturnedModal] = useState(false);
+  const [returningItemId, setReturningItemId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUnreturnedMaterials = async () => {
+      try {
+        const res = await fetch('/api/taken-materials?status=borrowed');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setUnreturnedItems(json.data);
+          const isDismissed = sessionStorage.getItem('dismissed_unreturned_materials_popup');
+          if (!isDismissed) {
+            setShowUnreturnedModal(true);
+          }
+        }
+      } catch (e) {
+        // silent catch
+      }
+    };
+    fetchUnreturnedMaterials();
+
+    const channel = supabase
+      .channel(`taken-materials-layout-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'taken_materials' }, () => {
+        fetchUnreturnedMaterials();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleDismissUnreturnedModal = () => {
+    sessionStorage.setItem('dismissed_unreturned_materials_popup', 'true');
+    setShowUnreturnedModal(false);
+  };
+
+  const handleMarkReturnedFromModal = async (id: string) => {
+    try {
+      setReturningItemId(id);
+      const res = await fetch('/api/taken-materials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'mark_returned' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const updated = unreturnedItems.filter((item) => item.id !== id);
+        setUnreturnedItems(updated);
+        if (updated.length === 0) {
+          setShowUnreturnedModal(false);
+        }
+      }
+    } catch (e) {
+    } finally {
+      setReturningItemId(null);
+    }
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -270,6 +336,11 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       href: '/admin/materials',
     },
     {
+      label: language === 'am' ? 'የተወሰዱ እቃዎች' : 'Taken Materials',
+      icon: PackageMinus,
+      href: '/admin/taken-materials',
+    },
+    {
       label: language === 'am' ? 'ምግቦች' : 'Menu Items',
       icon: Utensils,
       href: '/admin/menu',
@@ -304,22 +375,23 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
         '/admin/tables',
         '/admin/daily-expenses',
         '/admin/activity-log',
+        '/admin/taken-materials',
       ].includes(item.href);
     }
 
     if (role === 'kitchen') {
-      return item.href === '/admin/kitchen' || item.href === '/admin/inventory';
+      return item.href === '/admin/kitchen' || item.href === '/admin/inventory' || item.href === '/admin/taken-materials';
     }
 
     if (role === 'drinks_kitchen') {
-      return item.href === '/admin/drinks-kitchen' || item.href === '/admin/inventory';
+      return item.href === '/admin/drinks-kitchen' || item.href === '/admin/inventory' || item.href === '/admin/taken-materials';
     }
 
     if (role === 'waiter') {
-      return item.href === '/waiter';
+      return item.href === '/waiter' || item.href === '/admin/taken-materials';
     }
 
-    return item.href === '/admin';
+    return item.href === '/admin' || item.href === '/admin/taken-materials';
   });
 
   const visibleNavItems =
@@ -340,22 +412,22 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
     }
 
     if (role === 'cashier' || role === 'order_manager') {
-      return ['/admin/orders', '/admin/reports/orders', '/admin/tables', '/order', '/admin/daily-expenses', '/admin/activity-log'];
+      return ['/admin/orders', '/admin/reports/orders', '/admin/tables', '/order', '/admin/daily-expenses', '/admin/activity-log', '/admin/taken-materials'];
     }
 
     if (role === 'kitchen') {
-      return ['/admin/kitchen', '/admin/inventory'];
+      return ['/admin/kitchen', '/admin/inventory', '/admin/taken-materials'];
     }
 
     if (role === 'drinks_kitchen') {
-      return ['/admin/drinks-kitchen', '/admin/inventory'];
+      return ['/admin/drinks-kitchen', '/admin/inventory', '/admin/taken-materials'];
     }
 
     if (role === 'waiter') {
-      return ['/waiter', '/order'];
+      return ['/waiter', '/order', '/admin/taken-materials'];
     }
 
-    return ['/admin'];
+    return ['/admin', '/admin/taken-materials'];
   })();
 
   if (allowedPaths && !allowedPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
@@ -661,6 +733,102 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
                     : 'Save Password'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DAILY UNRETURNED MATERIALS POP-UP MODAL REMINDER */}
+      {showUnreturnedModal && unreturnedItems.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border-2 border-amber-500 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+            {/* MODAL HEADER */}
+            <div className="p-4 bg-amber-500 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle size={24} className="animate-bounce" />
+                <div>
+                  <h3 className="font-serif font-bold text-lg leading-tight">
+                    {language === 'am' ? 'ማስጠንቀቂያ፡ ያልተመለሱ እቃዎች አሉ!' : 'Unreturned Materials Reminder'}
+                  </h3>
+                  <p className="text-xs text-amber-100 font-medium">
+                    {language === 'am'
+                      ? 'እነዚህ ከካፌው የተወሰዱ እቃዎች እስካሁን አልተመለሱም:'
+                      : 'These items have been taken out of the cafe and NOT returned yet:'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleDismissUnreturnedModal}
+                className="p-1 rounded-lg hover:bg-amber-600 text-white transition"
+                title="Dismiss"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* UNRETURNED ITEMS LIST */}
+            <div className="p-4 sm:p-5 space-y-3 max-h-[60vh] overflow-y-auto">
+              {unreturnedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-stone-900 dark:text-white">
+                        {item.item_name}
+                      </span>
+                      <span className="px-2 py-0.2 rounded-full bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-extrabold">
+                        {item.quantity} {item.quantity === 1 ? (language === 'am' ? 'እቃ' : 'unit') : (language === 'am' ? 'እቃዎች' : 'units')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600 dark:text-slate-300">
+                      <span className="flex items-center gap-1 font-semibold text-stone-800 dark:text-slate-200">
+                        <Users size={12} className="text-amber-600" />
+                        {item.borrower_name}
+                      </span>
+                      {item.borrower_phone && (
+                        <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                          <Phone size={12} />
+                          {item.borrower_phone}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 text-stone-400">
+                        <Calendar size={12} />
+                        {new Date(item.taken_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleMarkReturnedFromModal(item.id)}
+                    disabled={returningItemId === item.id}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 shrink-0"
+                  >
+                    <Check size={14} />
+                    <span>{language === 'am' ? 'ተመልሷል (Mark Returned)' : 'Mark Returned'}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* MODAL FOOTER */}
+            <div className="p-3.5 bg-stone-50 dark:bg-slate-800/60 border-t border-stone-200 dark:border-slate-800 flex items-center justify-between">
+              <Link
+                href="/admin/taken-materials"
+                onClick={() => setShowUnreturnedModal(false)}
+                className="text-xs font-bold text-restaurant-accent hover:underline flex items-center gap-1"
+              >
+                <span>{language === 'am' ? 'ሁሉንም የተወሰዱ እቃዎች ተመልከት →' : 'View All Taken Materials →'}</span>
+              </Link>
+
+              <button
+                onClick={handleDismissUnreturnedModal}
+                className="px-4 py-1.5 rounded-xl border border-stone-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-stone-700 dark:text-slate-300 text-xs font-bold hover:bg-stone-100 dark:hover:bg-slate-800 transition"
+              >
+                {language === 'am' ? 'ለጊዜው ዝጋ' : 'Dismiss for Now'}
+              </button>
             </div>
           </div>
         </div>
