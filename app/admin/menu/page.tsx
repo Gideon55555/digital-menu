@@ -547,31 +547,8 @@ export default function MenuManagementPage() {
           </div>
         </div>
 
-        {/* SEARCH BAR & CATEGORIES FILTER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2">
-          {/* SEARCH BAR */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={isAmharic ? 'የሜኑ ዕቃዎችን በስም ወይም በምድብ ፈልግ...' : 'Search menu items by name, category, or price...'}
-              className="w-full pl-10 pr-9 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-cream-200 dark:border-slate-800 text-stone-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-restaurant-accent/40 shadow-xs transition"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          {/* Categories / Status Filters */}
-          <div className="flex flex-wrap gap-2">
+        {/* Categories / Status Filters */}
+        <div className="flex flex-wrap gap-2 pb-1">
           <button
             onClick={() => setFilter('all')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
@@ -620,7 +597,27 @@ export default function MenuManagementPage() {
               {isAmharic && cat.name.am ? cat.name.am : cat.name.en}
             </button>
           ))}
-          </div>
+        </div>
+
+        {/* SEARCH BAR (BELOW MENU CATEGORIES) */}
+        <div className="relative max-w-md pb-2">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={isAmharic ? 'የሜኑ ዕቃዎችን በስም ወይም በምድብ ፈልግ...' : 'Search menu items by name, category, or price...'}
+            className="w-full pl-10 pr-9 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-cream-200 dark:border-slate-800 text-stone-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-restaurant-accent/40 shadow-xs transition"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Menu Table */}
