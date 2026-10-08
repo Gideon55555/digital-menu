@@ -160,10 +160,20 @@ function AdminLayoutInner({ children }: AdminLayoutProps) {
       })
       .subscribe();
 
-    const interval = setInterval(fetchAlerts, 4000);
+    const interval = setInterval(fetchAlerts, 90000);
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAlerts();
+      }
+    };
+    window.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
       supabase.removeChannel(channel);
     };
   }, [adminAuth, role]);

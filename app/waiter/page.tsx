@@ -28,7 +28,9 @@ import {
   Upload,
   Clock,
   Check,
+  Zap,
 } from 'lucide-react'
+import { RushModeView } from '@/components/admin/RushModeView'
 
 type Table = {
   id: string
@@ -135,6 +137,15 @@ export default function WaiterPage() {
   const isAmharic = language === 'am'
 
   const [activeTab, setActiveTab] = useState<'create_order' | 'ready_orders'>('create_order')
+  const [isRushMode, setIsRushMode] = useState<boolean>(false)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rush_mode_enabled')
+      if (saved === 'true') setIsRushMode(true)
+    } catch (e) {}
+  }, [])
+
   const [tables, setTables] = useState<Table[]>([])
   const [categories, setCategories] = useState<MenuCategory[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -195,29 +206,17 @@ export default function WaiterPage() {
   }, [])
 
   // ---------------------------------------------------------
-  // LOAD TABLES, MENU ITEMS, CATEGORIES & ORDERS
+  // LOAD STATIC MENU & CATEGORIES (ON MOUNT & MENU CHANGES ONLY)
   // ---------------------------------------------------------
-  const loadData = useCallback(async (silent = false) => {
+  const loadStaticMenu = useCallback(async () => {
     try {
-      if (!silent && tables.length === 0) setLoading(true)
-      else if (!silent) setRefreshing(true)
-      setError('')
-
-      const [tablesResponse, menuResponse, categoriesResponse, ordersResponse] = await Promise.all([
-        fetch('/api/tables', { cache: 'no-store' }),
+      const [menuResponse, categoriesResponse] = await Promise.all([
         fetch('/api/menu', { cache: 'no-store' }),
         fetch('/api/categories', { cache: 'no-store' }),
-        fetch('/api/orders', { cache: 'no-store' }),
       ])
 
-      const tablesResult = await tablesResponse.json()
       const menuResult = await menuResponse.json()
       const categoriesResult = await categoriesResponse.json()
-      const ordersResult = await ordersResponse.json()
-
-      if (tablesResult.success && Array.isArray(tablesResult.data)) {
-        setTables(tablesResult.data)
-      }
 
       if (menuResult.success && Array.isArray(menuResult.data)) {
         setMenuItems(menuResult.data)
@@ -229,6 +228,28 @@ export default function WaiterPage() {
         )
         setCategories(sorted)
       }
+    } catch (err) {
+      console.error('Failed to load menu/categories:', err)
+    }
+  }, [])
+
+  // ---------------------------------------------------------
+  // LOAD DYNAMIC TABLES & ORDERS
+  // ---------------------------------------------------------
+  const loadDynamicData = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setRefreshing(true)
+      const [tablesResponse, ordersResponse] = await Promise.all([
+        fetch('/api/tables', { cache: 'no-store' }),
+        fetch('/api/orders', { cache: 'no-store' }),
+      ])
+
+      const tablesResult = await tablesResponse.json()
+      const ordersResult = await ordersResponse.json()
+
+      if (tablesResult.success && Array.isArray(tablesResult.data)) {
+        setTables(tablesResult.data)
+      }
 
       if (ordersResult.success && Array.isArray(ordersResult.data)) {
         setOrders(ordersResult.data)
@@ -238,14 +259,23 @@ export default function WaiterPage() {
         setError(
           isAmharic
             ? 'መረጃዎችን ማምጣት አልተቻለም። እባክዎ እንደገና ይሞክሩ።'
-            : 'Failed to load tables, menu, and orders. Please refresh.'
+            : 'Failed to load tables and orders. Please refresh.'
         )
       }
     } finally {
-      setLoading(false)
       setRefreshing(false)
     }
-  }, [tables.length, isAmharic])
+  }, [isAmharic])
+
+  const loadData = useCallback(async (silent = false) => {
+    try {
+      if (!silent && tables.length === 0) setLoading(true)
+      await Promise.all([loadStaticMenu(), loadDynamicData(silent)])
+    } catch (err) {
+    } finally {
+      setLoading(false)
+    }
+  }, [tables.length, loadStaticMenu, loadDynamicData])
 
   // Persistent live channel subscription for instant updates
   useEffect(() => {
@@ -257,45 +287,60 @@ export default function WaiterPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'tables' },
         () => {
-          loadData(true)
+          loadDynamicData(true)
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
         () => {
-          loadData(true)
+          loadDynamicData(true)
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'categories' },
         () => {
-          loadData(true)
+          loadStaticMenu()
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'menu_items' },
         () => {
-          loadData(true)
+          loadStaticMenu()
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') setChannelConnected(true)
-        else if (status === 'CLOSED' || status === 'CHANNEL_ERROR')
+        if (status === 'SUBSCRIBED') {
+          setChannelConnected(true)
+          loadDynamicData(true)
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setChannelConnected(false)
+        }
       })
 
+    // 90-second safety fallback refresh (Realtime WebSockets is primary live source)
     const interval = setInterval(() => {
-      loadData(true)
-    }, 4000)
+      loadDynamicData(true)
+    }, 90000)
+
+    // Refresh dynamic data when switching back to tab
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadDynamicData(true)
+      }
+    }
+    window.addEventListener('visibilitychange', handleFocus)
+    window.addEventListener('focus', handleFocus)
 
     return () => {
       clearInterval(interval)
+      window.removeEventListener('visibilitychange', handleFocus)
+      window.removeEventListener('focus', handleFocus)
       supabase.removeChannel(channel)
     }
-  }, [loadData])
+  }, [loadData, loadDynamicData, loadStaticMenu])
 
   // Filter ready orders for waiters
   const readyOrders = useMemo(() => {
@@ -868,8 +913,52 @@ export default function WaiterPage() {
               <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
               <span>{isAmharic ? 'አድስ' : 'Sync'}</span>
             </button>
+
+            {/* RUSH MODE TOGGLE SWITCH */}
+            <button
+              onClick={() => {
+                const next = !isRushMode
+                setIsRushMode(next)
+                localStorage.setItem('rush_mode_enabled', String(next))
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all shadow-md active:scale-95 border ${
+                isRushMode
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-300 shadow-orange-500/30'
+                  : 'bg-slate-800 text-amber-400 border-amber-500/40 hover:bg-slate-700'
+              }`}
+            >
+              <Zap className={`w-4 h-4 ${isRushMode ? 'fill-slate-950 animate-bounce' : 'fill-amber-400'}`} />
+              <span>
+                {isRushMode
+                  ? isAmharic
+                    ? '⚡ የችኮላ ሁኔታ በርቷል'
+                    : '⚡ RUSH MODE ON'
+                  : isAmharic
+                  ? 'የችኮላ ሁኔታ አብራ'
+                  : 'Switch to Rush Mode'}
+              </span>
+            </button>
           </div>
         </div>
+
+        {isRushMode ? (
+          <RushModeView
+            orders={orders as any}
+            tables={tables as any}
+            categories={categories as any}
+            menuItems={menuItems as any}
+            currentRole="waiter"
+            currentWaiter={currentWaiter || undefined}
+            onRefresh={async () => {
+              await loadData(true)
+            }}
+            onExitRushMode={() => {
+              setIsRushMode(false)
+              localStorage.setItem('rush_mode_enabled', 'false')
+            }}
+          />
+        ) : (
+          <>
 
         {/* ALERTS */}
         {error && (
@@ -1684,6 +1773,8 @@ export default function WaiterPage() {
               </div>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </AdminLayout>

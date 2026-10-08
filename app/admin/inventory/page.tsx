@@ -142,19 +142,33 @@ export default function InventoryPage() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setChannelConnected(true)
+          fetchInventory()
+          fetchNotifications()
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setChannelConnected(false)
         }
       })
 
-    // 4-second heartbeat auto-sync interval
+    // 90-second safety fallback refresh (Realtime WebSockets is primary live source)
     const pollInterval = setInterval(() => {
       fetchInventory()
       fetchNotifications()
-    }, 4000)
+    }, 90000)
+
+    // Refresh inventory data when switching back to tab
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchInventory()
+        fetchNotifications()
+      }
+    }
+    window.addEventListener('visibilitychange', handleFocus)
+    window.addEventListener('focus', handleFocus)
 
     return () => {
       clearInterval(pollInterval)
+      window.removeEventListener('visibilitychange', handleFocus)
+      window.removeEventListener('focus', handleFocus)
       supabase.removeChannel(channel)
     }
   }, [fetchInventory, fetchNotifications])

@@ -195,18 +195,30 @@ export default function KitchenPage() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setChannelConnected(true)
+          loadOrders(false)
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setChannelConnected(false)
         }
       })
 
-    // Continuous 4-second background auto-sync so the screen NEVER goes stale
+    // 90-second safety fallback refresh (Realtime WebSockets is primary live source)
     const pollInterval = setInterval(() => {
       loadOrders(false)
-    }, 4000)
+    }, 90000)
+
+    // Refresh dynamic data when switching back to tab
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadOrders(false)
+      }
+    }
+    window.addEventListener('visibilitychange', handleFocus)
+    window.addEventListener('focus', handleFocus)
 
     return () => {
       clearInterval(pollInterval)
+      window.removeEventListener('visibilitychange', handleFocus)
+      window.removeEventListener('focus', handleFocus)
       supabase.removeChannel(channel)
     }
   }, [loadOrders])

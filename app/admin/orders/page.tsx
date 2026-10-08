@@ -26,9 +26,11 @@ import {
   Trash2,
   ShoppingBag,
   Table2,
+  Zap,
 } from 'lucide-react';
 import { compressReceiptImage } from '@/lib/utils/image';
 import { useAdminLanguage } from '@/lib/i18n/AdminLanguageContext';
+import { RushModeView } from '@/components/admin/RushModeView';
 
 type LocalizedName =
   | string
@@ -100,6 +102,32 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] =
     useState<Tab>('new');
   const [currentRole, setCurrentRole] = useState<string>('cashier');
+
+  const [isRushMode, setIsRushMode] = useState<boolean>(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rush_mode_enabled');
+      if (saved === 'true') {
+        setIsRushMode(true);
+      }
+    } catch (e) {}
+  }, []);
+
+  async function loadMenuAndCategories() {
+    try {
+      const [catRes, menuRes] = await Promise.all([
+        fetch('/api/categories', { cache: 'no-store' }),
+        fetch('/api/menu', { cache: 'no-store' }),
+      ]);
+      const catData = await catRes.json();
+      const menuData = await menuRes.json();
+      if (catData.success && Array.isArray(catData.data)) setCategories(catData.data);
+      if (menuData.success && Array.isArray(menuData.data)) setMenuItems(menuData.data);
+    } catch (e) {}
+  }
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -195,6 +223,7 @@ export default function OrdersPage() {
   useEffect(() => {
     loadOrders();
     loadTables();
+    loadMenuAndCategories();
 
     // Unique channel to avoid collisions across multiple browser tabs
     const channel = supabase
@@ -224,18 +253,31 @@ export default function OrdersPage() {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setChannelConnected(true);
+          loadOrders(true);
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setChannelConnected(false);
         }
       });
 
-    // 4-second auto-poll so cashier NEVER has to manually refresh
+    // 90-second safety fallback refresh (Realtime WebSockets is primary live source)
     const pollInterval = setInterval(() => {
       loadOrders(true);
-    }, 4000);
+    }, 90000);
+
+    // Refresh instantly when user switches back to this browser tab
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadOrders(true);
+        loadTables();
+      }
+    };
+    window.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearInterval(pollInterval);
+      window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -850,9 +892,53 @@ export default function OrdersPage() {
                   : 'Sync'}
               </span>
             </button>
+
+            {/* RUSH MODE TOGGLE SWITCH */}
+            <button
+              onClick={() => {
+                const next = !isRushMode;
+                setIsRushMode(next);
+                localStorage.setItem('rush_mode_enabled', String(next));
+              }}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-md active:scale-95 border ${
+                isRushMode
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-300 shadow-orange-500/30'
+                  : 'bg-slate-800 text-amber-400 border-amber-500/40 hover:bg-slate-700'
+              }`}
+            >
+              <Zap className={`w-4 h-4 ${isRushMode ? 'fill-slate-950 animate-bounce' : 'fill-amber-400'}`} />
+              <span>
+                {isRushMode
+                  ? isAmharic
+                    ? '⚡ የችኮላ ሁኔታ በርቷል'
+                    : '⚡ RUSH MODE ON'
+                  : isAmharic
+                  ? 'የችኮላ ሁኔታ አብራ'
+                  : 'Switch to Rush Mode'}
+              </span>
+            </button>
           </div>
 
         </div>
+
+        {/* CONDITIONAL RUSH MODE OR STANDARD ORDERS PAGE */}
+        {isRushMode ? (
+          <RushModeView
+            orders={orders as any}
+            tables={tables as any}
+            categories={categories}
+            menuItems={menuItems}
+            currentRole={currentRole}
+            onRefresh={async () => {
+              await Promise.all([loadOrders(true), loadTables(), loadMenuAndCategories()]);
+            }}
+            onExitRushMode={() => {
+              setIsRushMode(false);
+              localStorage.setItem('rush_mode_enabled', 'false');
+            }}
+          />
+        ) : (
+          <>
 
         {/* TABS */}
 
@@ -1071,6 +1157,8 @@ export default function OrdersPage() {
               );
             })}
           </div>
+        )}
+        </>
         )}
 
       </div>
